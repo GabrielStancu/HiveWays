@@ -2,9 +2,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-namespace HiveWays.VehicleEdge.Configuration;
+namespace HiveWays.VehicleEdge.Extensions;
 
-public static class ServiceCollectionExtensions 
+public static class ServiceCollectionExtensions
 {
     public static OptionsBuilder<T> AddConfiguration<T>(this IServiceCollection services, string sectionName, ServiceLifetime serviceLifetime = ServiceLifetime.Scoped) where T : class
     {

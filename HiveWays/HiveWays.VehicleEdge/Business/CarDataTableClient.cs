@@ -10,7 +10,7 @@ public class CarDataTableClient : ICarDataTableClient
     private readonly TableClientConfiguration _configuration;
     private TableClient _tableClient;
     private readonly ILogger _logger;
-    private const string TableName = "CarData";
+    private const string TableName = "CarsStatus";
 
     public CarDataTableClient(TableClientConfiguration configuration, ILoggerFactory loggerFactory)
     {
@@ -18,7 +18,7 @@ public class CarDataTableClient : ICarDataTableClient
         _logger = loggerFactory.CreateLogger<CarDataTableClient>();
     }
 
-    public async Task WriteCarDataAsync(IEnumerable<ValueEntity> entities)
+    public async Task WriteCarDataAsync(IEnumerable<DataPointEntity> entities)
     {
         await InitTableClientAsync();
 
@@ -33,11 +33,10 @@ public class CarDataTableClient : ICarDataTableClient
         await Task.WhenAll(upsertTasks);
     }
 
-    private async Task<Response> WriteCarDataAsync(ValueEntity entity)
+    private async Task<Response> WriteCarDataAsync(DataPointEntity entity)
     {
-        _logger.LogInformation("Upserting alert entity with PartitionKey {PartitionKey}, RowKey {RowKey}", entity.PartitionKey, entity.RowKey);
         var response = await _tableClient.UpsertEntityAsync(entity);
-        _logger.LogInformation("Upserted alert entity");
+        _logger.LogInformation("Upserted alert entity with PartitionKey {PartitionKey}, RowKey {RowKey}", entity.PartitionKey, entity.RowKey);
 
         return response;
     }
@@ -48,7 +47,7 @@ public class CarDataTableClient : ICarDataTableClient
 
         if (_tableClient != null)
         {
-            _logger.LogInformation("Table already initialized, skipping...");
+            _logger.LogInformation("Table client already initialized, skipping...");
             return;
         }
 

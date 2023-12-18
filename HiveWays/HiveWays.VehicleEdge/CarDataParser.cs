@@ -1,8 +1,11 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 using HiveWays.VehicleEdge.Business;
 using HiveWays.VehicleEdge.Models;
+using CsvHelper;
+using CsvHelper.Configuration;
+using System.Globalization;
+using HiveWays.VehicleEdge.Extensions;
 
 namespace HiveWays.VehicleEdge
 {
@@ -18,24 +21,30 @@ namespace HiveWays.VehicleEdge
         }
 
         [Function(nameof(CarDataParser))]
-        public async Task Run([BlobTrigger("cars/{car}/data/{file}", Connection = "CarDataConnectionString:blob")] Stream stream,
-            string car, string file)
+        public async Task Run([BlobTrigger("cars/{file}", Connection = "StorageAccount:ConnectionString")] Stream stream, string file)
         {
             try
             {
-                _logger.LogInformation("Parsing file {File} for car {Car}", file, car);
+                _logger.LogInformation("Parsing file {File}", file);
 
+                var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+                {
+                    NewLine = Environment.NewLine,
+                };
                 using var reader = new StreamReader(stream);
-                string jsonContent = await reader.ReadToEndAsync();
-                var data = JsonSerializer.Deserialize<List<Batch>>(jsonContent);
-                var dataEntities = data
-                    .OrderBy(b => b.Values.First().Dp.First().Ts)
-                    .Select(b => new ValueEntity(car, b))
-                    .ToList();
+                using var csv = new CsvReader(reader, config);
 
-                _logger.LogInformation("Upserting {DataNodesCount} nodes to the table storage", dataEntities.Count);
-                await _carDataTableClient.WriteCarDataAsync(dataEntities);
-                _logger.LogInformation("Successfully uploaded data nodes to the table storage");
+                var timeReference = DateTime.UtcNow;
+                var dataPoints = csv.GetRecords<DataPoint>();
+                var dataPointsEntities = dataPoints
+                    .Select(dp => new DataPointEntity(dp, timeReference));
+
+                foreach (var batch in dataPointsEntities.Batch(50))
+                {
+                    _logger.LogInformation("Upserting batch to the table storage");
+                    await _carDataTableClient.WriteCarDataAsync(batch);
+                    _logger.LogInformation("Successfully uploaded batch to the table storage");
+                }
             }
             catch (Exception ex)
             {
