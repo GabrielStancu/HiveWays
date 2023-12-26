@@ -1,4 +1,4 @@
-﻿namespace HiveWays.VehicleEdge.Extensions;
+﻿namespace HiveWays.Common;
 
 public static class EnumerableExtensions
 {

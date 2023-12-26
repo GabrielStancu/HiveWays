@@ -1,6 +1,6 @@
 ﻿using CsvHelper.Configuration.Attributes;
 
-namespace HiveWays.VehicleEdge.Models;
+namespace HiveWays.Domain.Models;
 
 public class DataPoint
 {

@@ -3,7 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34330.188
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HiveWays.VehicleEdge", "HiveWays.VehicleEdge\HiveWays.VehicleEdge.csproj", "{328EBC02-2F25-422A-BED1-846044BBE435}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.VehicleEdge", "HiveWays.VehicleEdge\HiveWays.VehicleEdge.csproj", "{328EBC02-2F25-422A-BED1-846044BBE435}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.TelemetryIngestion", "HiveWays.TelemetryIngestion\HiveWays.TelemetryIngestion.csproj", "{FC14D304-7861-4D5D-9178-5FE70FD4FA22}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HiveWays.Core", "HiveWays.Core", "{4AE20149-1226-471B-8FB8-E8BAE0EF3B53}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Business", "HiveWays.Core\HiveWays.Domain\HiveWays.Business.csproj", "{FE8CA5AF-1F7A-4B8C-A68F-04EC7822EA05}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Infrastructure", "HiveWays.Core\HiveWays.Infrastructure\HiveWays.Infrastructure.csproj", "{C7A81D9F-E2D0-4C24-846A-17AEF10E9442}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Domain", "HiveWays.Domain\HiveWays.Domain.csproj", "{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,9 +25,30 @@ Global
 		{328EBC02-2F25-422A-BED1-846044BBE435}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{328EBC02-2F25-422A-BED1-846044BBE435}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{328EBC02-2F25-422A-BED1-846044BBE435}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC14D304-7861-4D5D-9178-5FE70FD4FA22}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC14D304-7861-4D5D-9178-5FE70FD4FA22}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC14D304-7861-4D5D-9178-5FE70FD4FA22}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC14D304-7861-4D5D-9178-5FE70FD4FA22}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE8CA5AF-1F7A-4B8C-A68F-04EC7822EA05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE8CA5AF-1F7A-4B8C-A68F-04EC7822EA05}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE8CA5AF-1F7A-4B8C-A68F-04EC7822EA05}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE8CA5AF-1F7A-4B8C-A68F-04EC7822EA05}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7A81D9F-E2D0-4C24-846A-17AEF10E9442}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7A81D9F-E2D0-4C24-846A-17AEF10E9442}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7A81D9F-E2D0-4C24-846A-17AEF10E9442}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7A81D9F-E2D0-4C24-846A-17AEF10E9442}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FE8CA5AF-1F7A-4B8C-A68F-04EC7822EA05} = {4AE20149-1226-471B-8FB8-E8BAE0EF3B53}
+		{C7A81D9F-E2D0-4C24-846A-17AEF10E9442} = {4AE20149-1226-471B-8FB8-E8BAE0EF3B53}
+		{CA4DAC91-441C-4195-9B4B-3461BC4A96AB} = {4AE20149-1226-471B-8FB8-E8BAE0EF3B53}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {48FD32CF-FC05-41F0-A498-6E99B524901E}

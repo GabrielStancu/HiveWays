@@ -1,8 +1,8 @@
-﻿using System.Globalization;
-using Azure;
+﻿using Azure;
 using Azure.Data.Tables;
+using HiveWays.Domain.Models;
 
-namespace HiveWays.VehicleEdge.Models;
+namespace HiveWays.Domain.Entities;
 
 public class DataPointEntity : ITableEntity
 {

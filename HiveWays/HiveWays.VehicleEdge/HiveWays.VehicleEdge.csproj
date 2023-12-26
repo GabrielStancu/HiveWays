@@ -8,18 +8,19 @@
     <UserSecretsId>f29b016f-72ed-4039-894b-ff6bbebb0558</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Azure.Data.Tables" Version="12.8.2" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.19.1" />
-    <PackageReference Include="Azure.Storage.Files.Shares" Version="12.17.1" />
-    <PackageReference Include="Azure.Storage.Queues" Version="12.17.1" />
-    <PackageReference Include="CsvHelper" Version="30.0.1" />
-    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.20.0" />
+	<PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.20.0" />
+	<!--<PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.EventGrid" Version="3.3.0" />-->
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Blobs" Version="6.2.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.16.4" />
     <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.22.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" Version="1.1.0" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Http" Version="3.2.0" />
     <PackageReference Include="Microsoft.Extensions.Azure" Version="1.7.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HiveWays.Core\HiveWays.Domain\HiveWays.Business.csproj" />
+    <ProjectReference Include="..\HiveWays.Core\HiveWays.Infrastructure\HiveWays.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">

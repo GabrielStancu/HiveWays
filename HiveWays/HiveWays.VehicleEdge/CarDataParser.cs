@@ -1,56 +1,44 @@
+using HiveWays.Business.CarDataCsvParser;
+using HiveWays.Business.ServiceBusClient;
+using HiveWays.Domain.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
-using HiveWays.VehicleEdge.Business;
-using HiveWays.VehicleEdge.Models;
-using CsvHelper;
-using CsvHelper.Configuration;
-using System.Globalization;
-using HiveWays.VehicleEdge.Extensions;
 
-namespace HiveWays.VehicleEdge
+namespace HiveWays.VehicleEdge;
+
+public class CarDataParser
 {
-    public class CarDataParser
+    private readonly ICarDataCsvParser _csvParser;
+    private readonly IQueueSenderClient<DataPoint> _queueSender;
+    private readonly ILogger<CarDataParser> _logger;
+
+    public CarDataParser(ICarDataCsvParser csvParser,
+        IQueueSenderClient<DataPoint> queueSender,
+        ILogger<CarDataParser> logger)
     {
-        private readonly ICarDataTableClient _carDataTableClient;
-        private readonly ILogger<CarDataParser> _logger;
+        _csvParser = csvParser;
+        _queueSender = queueSender;
+        _logger = logger;
+    }
 
-        public CarDataParser(ICarDataTableClient carDataTableClient, ILogger<CarDataParser> logger)
+    [Function(nameof(CarDataParser))]
+    public async Task Run([BlobTrigger("cars/{file}", Connection = "StorageAccount:ConnectionString")] Stream stream, string file)
+    {
+        try
         {
-            _carDataTableClient = carDataTableClient;
-            _logger = logger;
+            _logger.LogInformation("Parsing file {File}", file);
+            var dataPoints = _csvParser.ParseCsv(stream);
+
+            foreach (var dataPoint in dataPoints)
+            {
+                _logger.LogInformation("Sending data point to service bus");
+                await _queueSender.SendMessageAsync(dataPoint);
+            }
         }
-
-        [Function(nameof(CarDataParser))]
-        public async Task Run([BlobTrigger("cars/{file}", Connection = "StorageAccount:ConnectionString")] Stream stream, string file)
+        catch (Exception ex)
         {
-            try
-            {
-                _logger.LogInformation("Parsing file {File}", file);
-
-                var config = new CsvConfiguration(CultureInfo.InvariantCulture)
-                {
-                    NewLine = Environment.NewLine,
-                };
-                using var reader = new StreamReader(stream);
-                using var csv = new CsvReader(reader, config);
-
-                var timeReference = DateTime.UtcNow;
-                var dataPoints = csv.GetRecords<DataPoint>();
-                var dataPointsEntities = dataPoints
-                    .Select(dp => new DataPointEntity(dp, timeReference));
-
-                foreach (var batch in dataPointsEntities.Batch(50))
-                {
-                    _logger.LogInformation("Upserting batch to the table storage");
-                    await _carDataTableClient.WriteCarDataAsync(batch);
-                    _logger.LogInformation("Successfully uploaded batch to the table storage");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Error processing blob. Exception: {ex.Message}");
-                throw;
-            }
+            _logger.LogError($"Error processing blob. Exception: {ex.Message}");
+            throw;
         }
     }
 }
