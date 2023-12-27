@@ -1,5 +1,4 @@
 using HiveWays.Business.CarDataCsvParser;
-using HiveWays.Business.EventGridMqttClient;
 using HiveWays.Business.Extensions;
 using HiveWays.Business.ServiceBusClient;
 using HiveWays.Domain.Models;

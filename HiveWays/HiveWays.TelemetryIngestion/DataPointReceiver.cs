@@ -1,5 +1,6 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 
 namespace HiveWays.TelemetryIngestion;
@@ -14,10 +15,14 @@ public class DataPointReceiver
     }
 
     [Function(nameof(DataPointReceiver))]
-    public void Run([ServiceBusTrigger("%CarInfoServiceBus:QueueName%", Connection = "CarInfoServiceBus:ConnectionString")] ServiceBusReceivedMessage message)
+    public async Task Run([ServiceBusTrigger("%CarInfoServiceBus:QueueName%", Connection = "CarInfoServiceBus:ConnectionString")] ServiceBusReceivedMessage message,
+        [DurableClient] DurableTaskClient client,
+        FunctionContext executionContext)
     {
-        _logger.LogInformation("Message ID: {id}", message.MessageId);
-        _logger.LogInformation("Message Body: {body}", message.Body);
-        _logger.LogInformation("Message Content-Type: {contentType}", message.ContentType);
+        _logger.LogInformation("Starting ingestion pipeline...");
+
+        var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DataIngestionOrchestrator), message);
+
+        _logger.LogInformation("Finished ingestion pipeline run with instance id {IngestionPipelineInstanceId}", instanceId);
     }
 }
