@@ -15,7 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Infrastructure", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Domain", "HiveWays.Domain\HiveWays.Domain.csproj", "{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HiveWays.RegisteredObjectsApi", "HiveWays.RegisteredCarsApi\HiveWays.RegisteredObjectsApi.csproj", "{CC5E7D79-4881-4353-B225-433B9180A29E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.RegisteredItemsApi", "HiveWays.RegisteredCarsApi\HiveWays.RegisteredItemsApi.csproj", "{CC5E7D79-4881-4353-B225-433B9180A29E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

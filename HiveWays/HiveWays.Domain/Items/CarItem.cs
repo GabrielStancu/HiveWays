@@ -1,15 +1,10 @@
-﻿using System.Text.Json.Serialization;
+﻿using HiveWays.Domain.Models;
+using System.Text.Json.Serialization;
 
-namespace HiveWays.Domain.Models;
+namespace HiveWays.Domain.Items;
 
-public class RegisteredObject
+public class CarItem : BaseItem
 {
-    [JsonPropertyName("id")]
-    public Guid Id { get; set; }
-
-    [JsonPropertyName("carExternalId")]
-    public int CarExternalId { get; set; }
-
     [JsonPropertyName("brand")]
     public string Brand { get; set; }
 
@@ -22,9 +17,9 @@ public class RegisteredObject
     [JsonPropertyName("fuelType")]
     public FuelType FuelType { get; set; }
 
-    [JsonPropertyName("fuelType")]
-    public ObjectType ObjectType { get; set; }
-
     [JsonPropertyName("range")]
     public decimal Range { get; set; }
+
+    [JsonPropertyName("objectType")]
+    public override ObjectType ObjectType => ObjectType.Car;
 }

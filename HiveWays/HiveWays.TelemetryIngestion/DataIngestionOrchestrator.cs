@@ -21,7 +21,7 @@ namespace HiveWays.TelemetryIngestion
         public async Task<IEnumerable<string>> RunOrchestrator(
             [OrchestrationTrigger] TaskOrchestrationContext context)
         {
-            _logger.LogInformation("Starting validation stage...");
+            _logger.LogInformation("Starting ingestion pipeline...");
             
 
             // returns ["Hello Tokyo!", "Hello Seattle!", "Hello London!"]
@@ -55,7 +55,7 @@ namespace HiveWays.TelemetryIngestion
             //return new DataPointEntity(dataPoint, _timeReference);
         }
 
-        [Function(nameof(StoreEnrichedDataPoint))]
+        [Function(nameof(RouteMessage))]
         public void RouteMessage([ActivityTrigger] DataPointEntity dataPoint, FunctionContext executionContext)
         {
             // Compute new properties

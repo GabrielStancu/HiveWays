@@ -14,6 +14,10 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" Version="1.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\HiveWays.Core\HiveWays.Domain\HiveWays.Business.csproj" />
+    <ProjectReference Include="..\HiveWays.Core\HiveWays.Infrastructure\HiveWays.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <None Update="host.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

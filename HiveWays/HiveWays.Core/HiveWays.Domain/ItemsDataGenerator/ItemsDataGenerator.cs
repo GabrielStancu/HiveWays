@@ -1,13 +1,14 @@
-﻿using HiveWays.Domain.Models;
-using HiveWays.Business.Extensions;
+﻿using HiveWays.Business.Extensions;
+using HiveWays.Domain.Items;
+using HiveWays.Domain.Models;
 
-namespace HiveWays.Business.ObjectDataGenerator;
+namespace HiveWays.Business.ItemsDataGenerator;
 
-public static class ObjectsDataGenerator
+public static class ItemsDataGenerator
 {
-    public static List<RegisteredObject> Generate()
+    public static List<BaseItem> Generate()
     {
-        List<RegisteredObject> objects = new List<RegisteredObject>();
+        List<BaseItem> objects = new List<BaseItem>();
 
         var carBrands = GenerateCarBrands();
         var carModels = GenerateCarModels();
@@ -16,23 +17,32 @@ public static class ObjectsDataGenerator
 
         for (int i = 1; i <= 3000; i++)
         {
-            RegisteredObject obj = new RegisteredObject
-            {
-                Id = Guid.NewGuid(),
-                CarExternalId = i,
-                ObjectType = GetObjectType(i),
-                FuelType = GetFuelType(i)
-            };
+            var objectType = GetObjectType(i);
+            BaseItem obj;
 
-            if (obj.ObjectType == ObjectType.Car)
+            switch (objectType)
             {
-                obj.Brand = carBrands[random.Next(carBrands.Length)];
-                obj.Model = carModels[obj.Brand][random.Next(carModels[obj.Brand].Length)];
-
-                // Generate realistic fabrication year and range
-                obj.FabricationYear = random.NextGaussian(2011, 4);
-                obj.Range = Math.Max(0, (decimal)random.NextGaussian(175000, 30000));
+                case ObjectType.Car:
+                    var brand = carBrands[random.Next(carBrands.Length)];
+                    obj = new CarItem
+                    {
+                        Brand = brand,
+                        Model = carModels[brand][random.Next(carModels[brand].Length)],
+                        FabricationYear = random.NextGaussian(2011, 4),
+                        Range = Math.Max(0, (decimal)random.NextGaussian(175000, 30000)),
+                        FuelType = GetFuelType(i)
+                    };
+                    break;
+                case ObjectType.TrafficLight:
+                    obj = new TrafficLightItem();
+                    break;
+                default:
+                    obj = new ObstacleItem();
+                    break;
             }
+
+            obj.Id = Guid.NewGuid();
+            obj.ExternalId = i;
 
             objects.Add(obj);
         }
