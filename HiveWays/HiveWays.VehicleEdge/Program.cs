@@ -1,9 +1,7 @@
-using HiveWays.Business.CarDataCsvParser;
 using HiveWays.Business.Extensions;
 using HiveWays.Business.ServiceBusClient;
-using HiveWays.Domain.Models;
-using HiveWays.Infrastructure.Clients;
-using HiveWays.Infrastructure.Services;
+using HiveWays.Infrastructure.Factories;
+using HiveWays.VehicleEdge.CarDataCsvParser;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -16,7 +14,7 @@ var host = new HostBuilder()
         services.ConfigureFunctionsApplicationInsights();
 
         services.AddScoped<ICarDataCsvParser, CarDataCsvParser>();
-        services.AddSingleton<IQueueSenderClient<DataPoint>, QueueSenderClient<DataPoint>>();
+        services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
         services.AddConfiguration<ServiceBusConfiguration>("CarInfoServiceBus");
     })
     .Build();

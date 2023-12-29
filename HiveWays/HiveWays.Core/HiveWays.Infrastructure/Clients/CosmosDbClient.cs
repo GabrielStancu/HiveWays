@@ -1,12 +1,12 @@
 ﻿using System.Net;
 using Microsoft.Azure.Cosmos;
 using HiveWays.Business.CosmosDbClient;
-using HiveWays.Domain.Items;
 using Microsoft.Extensions.Logging;
+using HiveWays.Domain.Documents;
 
 namespace HiveWays.Infrastructure.Clients;
 
-public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseItem
+public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseDevice
 {
     private readonly CosmosDbConfiguration _configuration;
     private readonly ILogger<CosmosDbClient<T>> _logger;
@@ -18,7 +18,7 @@ public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseItem
         _logger = logger;
     }
 
-    public async Task<T> GetItemByIdAsync(string id, string partitionKey)
+    public async Task<T> GetDocumentByIdAsync(string id, string partitionKey)
     {
         try
         {
@@ -35,7 +35,7 @@ public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseItem
         }
     }
 
-    public async Task<IEnumerable<T>> GetItemsAsync()
+    public async Task<IEnumerable<T>> GetDocumentsAsync()
     {
         var entities = new List<T>();
 
@@ -62,7 +62,7 @@ public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseItem
         }
     }
 
-    public async Task<IEnumerable<T>> GetItemsByQueryAsync(Func<T, bool> query)
+    public async Task<IEnumerable<T>> GetDocumentsByQueryAsync(Func<T, bool> query)
     {
         try
         {
@@ -83,19 +83,18 @@ public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseItem
         }
     }
 
-    public async Task UpsertItemAsync(T entity)
+    public async Task UpsertDocumentAsync(T entity)
     {
         try
         {
-            entity.Id ??= Guid.NewGuid();
+            if (string.IsNullOrEmpty(entity.Id))
+            {
+                entity.Id = Guid.NewGuid().ToString();
+            }
 
             var container = GetContainerClient();
-            var response = await container.UpsertItemAsync(entity, new PartitionKey(entity.Id.ToString()));
-
-            if (response != null && response.StatusCode != HttpStatusCode.OK)
-            {
-                throw new Exception("Received unsuccessful response while upserting entity");
-            }
+            
+            await container.UpsertItemAsync(entity, new PartitionKey(entity.Id));
         }
         catch (Exception ex)
         {
@@ -107,7 +106,11 @@ public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseItem
 
     private Container GetContainerClient()
     {
-        _client ??= new CosmosClient(_configuration.ConnectionString);
+        _client ??= new CosmosClient(_configuration.ConnectionString,
+            new CosmosClientOptions
+            {
+                SerializerOptions = new CosmosSerializationOptions { PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase },
+            });
 
         var container = _client.GetContainer(_configuration.DatabaseId, _configuration.ContainerName);
 

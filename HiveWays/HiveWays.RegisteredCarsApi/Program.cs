@@ -1,6 +1,6 @@
 using HiveWays.Business.CosmosDbClient;
 using HiveWays.Business.Extensions;
-using HiveWays.Domain.Items;
+using HiveWays.Domain.Documents;
 using HiveWays.Infrastructure.Clients;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +13,7 @@ var host = new HostBuilder()
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
 
-        services.AddSingleton<ICosmosDbClient<BaseItem>, CosmosDbClient<BaseItem>>();
+        services.AddSingleton<ICosmosDbClient<BaseDevice>, CosmosDbClient<BaseDevice>>();
         services.AddConfiguration<CosmosDbConfiguration>("RegisteredItems");
     })
     .Build();

@@ -1,14 +1,13 @@
 ﻿using HiveWays.Business.Extensions;
-using HiveWays.Domain.Items;
-using HiveWays.Domain.Models;
+using HiveWays.Domain.Documents;
 
-namespace HiveWays.Business.ItemsDataGenerator;
+namespace HiveWays.RegisteredDevicesGenerator;
 
 public static class ItemsDataGenerator
 {
-    public static List<BaseItem> Generate()
+    public static List<BaseDevice> Generate()
     {
-        List<BaseItem> objects = new List<BaseItem>();
+        List<BaseDevice> objects = new List<BaseDevice>();
 
         var carBrands = GenerateCarBrands();
         var carModels = GenerateCarModels();
@@ -18,30 +17,30 @@ public static class ItemsDataGenerator
         for (int i = 1; i <= 3000; i++)
         {
             var objectType = GetObjectType(i);
-            BaseItem obj;
+            BaseDevice obj;
 
             switch (objectType)
             {
                 case ObjectType.Car:
                     var brand = carBrands[random.Next(carBrands.Length)];
-                    obj = new CarItem
+                    obj = new CarDevice
                     {
                         Brand = brand,
                         Model = carModels[brand][random.Next(carModels[brand].Length)],
-                        FabricationYear = random.NextGaussian(2011, 4),
+                        FabricationYear = Math.Max(random.NextGaussian(2011, 4), DateTime.UtcNow.Year),
                         Range = Math.Max(0, (decimal)random.NextGaussian(175000, 30000)),
                         FuelType = GetFuelType(i)
                     };
                     break;
                 case ObjectType.TrafficLight:
-                    obj = new TrafficLightItem();
+                    obj = new TrafficLightDevice();
                     break;
                 default:
-                    obj = new ObstacleItem();
+                    obj = new ObstacleDevice();
                     break;
             }
 
-            obj.Id = Guid.NewGuid();
+            obj.Id = Guid.NewGuid().ToString();
             obj.ExternalId = i;
 
             objects.Add(obj);

@@ -7,14 +7,21 @@ namespace HiveWays.Infrastructure.Clients;
 
 public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITableEntity
 {
-    private readonly ClientConfiguration _configuration;
+    private readonly TableStorageConfiguration _configuration;
     private TableClient _tableClient;
     private readonly ILogger _logger;
 
-    public TableStorageClient(ClientConfiguration configuration, ILogger<TableStorageClient<T>> logger)
+    public TableStorageClient(TableStorageConfiguration configuration, ILogger<TableStorageClient<T>> logger)
     {
         _configuration = configuration;
         _logger = logger;
+    }
+
+    public async Task UpsertEntityAsync(T entity)
+    {
+        await InitTableClientAsync();
+
+        await _tableClient.UpsertEntityAsync(entity);
     }
 
     public async Task UpsertEntitiesAsync(IEnumerable<T> entities)
@@ -25,14 +32,14 @@ public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITa
 
         foreach (var entity in entities)
         {
-            var upsertTask = UpsertEntityAsync(entity);
+            var upsertTask = UpsertEntityInternalAsync(entity);
             upsertTasks.Add(upsertTask);
         }
 
         await Task.WhenAll(upsertTasks);
     }
 
-    private async Task<Response> UpsertEntityAsync(T entity)
+    private async Task<Response> UpsertEntityInternalAsync(T entity)
     {
         var response = await _tableClient.UpsertEntityAsync(entity);
         _logger.LogInformation("Upserted alert entity with PartitionKey {PartitionKey}, RowKey {RowKey}", entity.PartitionKey, entity.RowKey);

@@ -1,11 +1,11 @@
-﻿using HiveWays.Domain.Items;
+﻿using HiveWays.Domain.Documents;
 
 namespace HiveWays.Business.CosmosDbClient;
 
-public interface ICosmosDbClient<T> where T : BaseItem
+public interface ICosmosDbClient<T> where T : BaseDevice
 {
-    Task<T> GetItemByIdAsync(string id, string partitionKey);
-    Task<IEnumerable<T>> GetItemsAsync();
-    Task<IEnumerable<T>> GetItemsByQueryAsync(Func<T, bool> query);
-    Task UpsertItemAsync(T entity);
+    Task<T> GetDocumentByIdAsync(string id, string partitionKey);
+    Task<IEnumerable<T>> GetDocumentsAsync();
+    Task<IEnumerable<T>> GetDocumentsByQueryAsync(Func<T, bool> query);
+    Task UpsertDocumentAsync(T entity);
 }

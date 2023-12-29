@@ -1,6 +1,6 @@
-using HiveWays.Business.CarDataCsvParser;
 using HiveWays.Business.ServiceBusClient;
-using HiveWays.Domain.Models;
+using HiveWays.Infrastructure.Factories;
+using HiveWays.VehicleEdge.CarDataCsvParser;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -9,15 +9,16 @@ namespace HiveWays.VehicleEdge;
 public class CarDataParser
 {
     private readonly ICarDataCsvParser _csvParser;
-    private readonly IQueueSenderClient<DataPoint> _queueSender;
+    private readonly IServiceBusSenderClient _senderClient;
     private readonly ILogger<CarDataParser> _logger;
 
     public CarDataParser(ICarDataCsvParser csvParser,
-        IQueueSenderClient<DataPoint> queueSender,
+        IServiceBusSenderFactory senderFactory,
+        ServiceBusConfiguration serviceBusConfiguration,
         ILogger<CarDataParser> logger)
     {
         _csvParser = csvParser;
-        _queueSender = queueSender;
+        _senderClient = senderFactory.GetServiceBusSenderClient(serviceBusConfiguration.ConnectionString, serviceBusConfiguration.QueueName);
         _logger = logger;
     }
 
@@ -32,7 +33,7 @@ public class CarDataParser
             foreach (var dataPoint in dataPoints)
             {
                 _logger.LogInformation("Sending data point to service bus");
-                await _queueSender.SendMessageAsync(dataPoint);
+                await _senderClient.SendMessageAsync(dataPoint);
             }
         }
         catch (Exception ex)

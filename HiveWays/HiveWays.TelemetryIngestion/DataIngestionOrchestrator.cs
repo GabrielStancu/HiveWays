@@ -1,67 +1,147 @@
+using System.Text.Json;
+using HiveWays.Business.CosmosDbClient;
+using HiveWays.Business.ServiceBusClient;
+using HiveWays.Business.TableStorageClient;
+using HiveWays.Domain.Documents;
 using HiveWays.Domain.Entities;
 using HiveWays.Domain.Models;
+using HiveWays.Infrastructure.Factories;
+using HiveWays.TelemetryIngestion.Configuration;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
 
-namespace HiveWays.TelemetryIngestion
+namespace HiveWays.TelemetryIngestion;
+
+public class DataIngestionOrchestrator
 {
-    public class DataIngestionOrchestrator
+    private readonly ICosmosDbClient<BaseDevice> _itemCosmosClient;
+    private readonly ITableStorageClient<DataPointEntity> _tableStorageClient;
+    private readonly IServiceBusSenderFactory _serviceBusSenderFactory;
+    private readonly IServiceBusConfigurationFactory _serviceBusConfigurationFactory;
+    private readonly IngestionConfiguration _ingestionConfiguration;
+    private readonly ILogger<DataIngestionOrchestrator> _logger;
+    private readonly DateTime _timeReference;
+
+    public DataIngestionOrchestrator(
+        ICosmosDbClient<BaseDevice> itemCosmosClient,
+        ITableStorageClient<DataPointEntity> tableStorageClient,
+        IServiceBusSenderFactory serviceBusSenderFactory,
+        IServiceBusConfigurationFactory serviceBusConfigurationFactory,
+        IngestionConfiguration ingestionConfiguration,
+        ILogger<DataIngestionOrchestrator> logger)
     {
-        private readonly ILogger<DataIngestionOrchestrator> _logger;
-        private readonly DateTime _timeReference;
+        _itemCosmosClient = itemCosmosClient;
+        _tableStorageClient = tableStorageClient;
+        _serviceBusSenderFactory = serviceBusSenderFactory;
+        _serviceBusConfigurationFactory = serviceBusConfigurationFactory;
+        _ingestionConfiguration = ingestionConfiguration;
+        _logger = logger;
+        _timeReference = DateTime.UtcNow;
+    }
 
-        public DataIngestionOrchestrator(ILogger<DataIngestionOrchestrator> logger)
+    [Function(nameof(DataIngestionOrchestrator))]
+    public async Task<bool> RunOrchestrator(
+        [OrchestrationTrigger] TaskOrchestrationContext context)
+    {
+        _logger.LogInformation("Starting ingestion pipeline...");
+
+        var inputDataPoint = context.GetInput<DataPoint>();
+
+        _logger.LogInformation("Received input data point {InputDataPoint}", JsonSerializer.Serialize(inputDataPoint));
+
+        var isValidInput = await context.CallActivityAsync<bool>(nameof(ValidateDataPoint), inputDataPoint);
+
+        if (isValidInput)
+            return false;
+
+        var dataPointEntity = await context.CallActivityAsync<DataPointEntity>(nameof(EnrichDataPoint), inputDataPoint);
+
+        await context.CallActivityAsync(nameof(StoreEnrichedDataPoint), dataPointEntity);
+        await context.CallActivityAsync(nameof(RouteMessage), dataPointEntity);
+
+        return true;
+    }
+
+    [Function(nameof(ValidateDataPoint))]
+    public async Task<bool> ValidateDataPoint([ActivityTrigger] DataPoint dataPoint)
+    {
+        if (dataPoint.Id < _ingestionConfiguration.MinId || dataPoint.Id > _ingestionConfiguration.MaxId)
         {
-            _logger = logger;
-            _timeReference = DateTime.UtcNow;
+            _logger.LogError("Item is not registered, id: {UnregisteredItemId}", dataPoint.Id);
+            return false;
         }
 
-        [Function(nameof(DataIngestionOrchestrator))]
-        public async Task<IEnumerable<string>> RunOrchestrator(
-            [OrchestrationTrigger] TaskOrchestrationContext context)
+        if (dataPoint.Speed < _ingestionConfiguration.MinSpeed || dataPoint.Speed > _ingestionConfiguration.MaxSpeed)
         {
-            _logger.LogInformation("Starting ingestion pipeline...");
-            
-
-            // returns ["Hello Tokyo!", "Hello Seattle!", "Hello London!"]
-            return outputs;
+            _logger.LogError("Invalid speed indicating error data: {InvalidSpeed} m/s", dataPoint.Speed);
+            return false;
         }
 
-        [Function(nameof(ValidateDataPoint))]
-        public bool ValidateDataPoint([ActivityTrigger] DataPoint dataPoint, FunctionContext executionContext)
-        {
-            // Check incoming values are in range
-            // Check vehicle id is ok (taken from Cosmos db)
+        return await IsItemRegisteredAsync(dataPoint.Id);
+    }
 
-            return true;
+    [Function(nameof(EnrichDataPoint))]
+    public DataPointEntity EnrichDataPoint([ActivityTrigger] DataPoint dataPoint)
+    {
+        var dataPointEntity = new DataPointEntity
+        {
+            PartitionKey = dataPoint.Id.ToString(),
+            RowKey = _timeReference.AddSeconds(dataPoint.TimeOffsetSeconds).ToString("o"), // TODO: make the simulator generate timestamps properly
+            SpeedMps = dataPoint.Speed,
+            SpeedKmph = dataPoint.Speed * 3.6m,
+            AccelerationMps = dataPoint.Acceleration,
+            AccelerationKmph = dataPoint.Acceleration * 12960,
+            Latitude = _ingestionConfiguration.ReferenceLatitude + dataPoint.Y,
+            Longitude = _ingestionConfiguration.ReferenceLongitude + dataPoint.X,
+            Heading = dataPoint.Heading
+        };
+
+        _logger.LogInformation("Enriched data point to {EnrichedDataPoint}", JsonSerializer.Serialize(dataPointEntity));
+
+        return dataPointEntity;
+    }
+
+    [Function(nameof(StoreEnrichedDataPoint))]
+    public async Task StoreEnrichedDataPoint([ActivityTrigger] DataPointEntity dataPointEntity)
+    {
+        _logger.LogInformation("Storing data point entity {DataPointEntityToBeStored}", JsonSerializer.Serialize(dataPointEntity));
+        await _tableStorageClient.UpsertEntityAsync(dataPointEntity);
+    }
+
+    [Function(nameof(RouteMessage))]
+    public async Task RouteMessage([ActivityTrigger] DataPointEntity dataPointEntity)
+    {
+        var message = new TrafficMessage
+        {
+            DeviceId = dataPointEntity.PartitionKey,
+            Timestamp = DateTime.Parse(dataPointEntity.RowKey),
+            SpeedMps = dataPointEntity.SpeedMps,
+            SpeedKmph = dataPointEntity.SpeedKmph,
+            AccelerationMps = dataPointEntity.AccelerationMps,
+            AccelerationKmph = dataPointEntity.AccelerationKmph,
+            Latitude = dataPointEntity.Latitude,
+            Longitude = dataPointEntity.Longitude,
+            Heading = dataPointEntity.Heading
+        };
+        var messageType = ServiceBusMessageType.StatusReceived; // TODO: get this dynamically, if alert or traffic or trip
+        var configuration = _serviceBusConfigurationFactory.GetServiceBusConfiguration(messageType.ToString());
+        var sender = _serviceBusSenderFactory.GetServiceBusSenderClient(configuration.ConnectionString, configuration.QueueName);
+
+        _logger.LogInformation("Routing message {MessageToRoute} to queue {QueueRoute}", JsonSerializer.Serialize(message), configuration.QueueName);
+        await sender.SendMessageAsync(message);
+    }
+
+    private async Task<bool> IsItemRegisteredAsync(int id)
+    {
+        var registeredItems = await _itemCosmosClient.GetDocumentsByQueryAsync(i => i.ExternalId == id);
+        var isRegisteredItem = registeredItems.Single() != null;
+
+        if (!isRegisteredItem)
+        {
+            _logger.LogError("Item with id could not be found as registered item: {UnregisteredItemId}", id);
         }
 
-        [Function(nameof(EnrichDataPoint))]
-        public DataPointEntity EnrichDataPoint([ActivityTrigger] DataPoint dataPoint, FunctionContext executionContext)
-        {
-            // Compute new properties
-            // convert to DataPointEntity
-
-            return new DataPointEntity(dataPoint, _timeReference);
-        }
-
-        [Function(nameof(StoreEnrichedDataPoint))]
-        public void StoreEnrichedDataPoint([ActivityTrigger] DataPointEntity dataPoint, FunctionContext executionContext)
-        {
-            // Compute new properties
-            // convert to DataPointEntity
-
-            //return new DataPointEntity(dataPoint, _timeReference);
-        }
-
-        [Function(nameof(RouteMessage))]
-        public void RouteMessage([ActivityTrigger] DataPointEntity dataPoint, FunctionContext executionContext)
-        {
-            // Compute new properties
-            // convert to DataPointEntity
-
-            //return new DataPointEntity(dataPoint, _timeReference);
-        }
+        return isRegisteredItem;
     }
 }

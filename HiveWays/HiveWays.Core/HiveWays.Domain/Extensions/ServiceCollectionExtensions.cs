@@ -6,18 +6,9 @@ namespace HiveWays.Business.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static OptionsBuilder<T> AddConfiguration<T>(this IServiceCollection services, string sectionName, ServiceLifetime serviceLifetime = ServiceLifetime.Singleton) where T : class
+    public static OptionsBuilder<T> AddConfiguration<T>(this IServiceCollection services, 
+        string sectionName, ServiceLifetime serviceLifetime = ServiceLifetime.Singleton) where T : class
     {
-        if (services == null)
-        {
-            throw new ArgumentNullException(nameof(services));
-        }
-
-        if (string.IsNullOrWhiteSpace(sectionName))
-        {
-            throw new ArgumentNullException(nameof(sectionName));
-        }
-
         services.Add(new ServiceDescriptor(typeof(T), provider =>
         {
             var options = provider.GetRequiredService<IOptions<T>>();

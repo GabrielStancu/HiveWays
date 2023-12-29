@@ -1,6 +1,6 @@
 ﻿namespace HiveWays.Business.TableStorageClient;
 
-public class ClientConfiguration
+public class TableStorageConfiguration
 {
     public string ConnectionString { get; set; }
     public string TableName { get; set; }

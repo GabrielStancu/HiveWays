@@ -1,10 +1,9 @@
-﻿using CsvHelper;
+﻿using System.Globalization;
+using CsvHelper;
 using CsvHelper.Configuration;
-using HiveWays.Business.CarDataCsvParser;
 using HiveWays.Domain.Models;
-using System.Globalization;
 
-namespace HiveWays.Infrastructure.Services;
+namespace HiveWays.VehicleEdge.CarDataCsvParser;
 
 public class CarDataCsvParser : ICarDataCsvParser
 {
@@ -12,7 +11,9 @@ public class CarDataCsvParser : ICarDataCsvParser
     {
         var config = new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            NewLine = Environment.NewLine
+            NewLine = Environment.NewLine,
+            IgnoreBlankLines = true,
+            HasHeaderRecord = true
         };
 
         using var reader = new StreamReader(stream);

@@ -1,6 +1,6 @@
 ﻿using System.Runtime.Serialization;
 
-namespace HiveWays.Domain.Models;
+namespace HiveWays.Domain.Documents;
 
 public enum FuelType
 {

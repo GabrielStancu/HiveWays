@@ -1,6 +1,6 @@
 ﻿using HiveWays.Domain.Models;
 
-namespace HiveWays.Business.CarDataCsvParser;
+namespace HiveWays.VehicleEdge.CarDataCsvParser;
 
 public interface ICarDataCsvParser
 {
