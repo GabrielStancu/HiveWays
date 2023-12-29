@@ -15,7 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Infrastructure", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Domain", "HiveWays.Domain\HiveWays.Domain.csproj", "{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.RegisteredDevicesGenerator", "HiveWays.RegisteredCarsApi\HiveWays.RegisteredDevicesGenerator.csproj", "{CC5E7D79-4881-4353-B225-433B9180A29E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.RegisteredDevicesGenerator", "HiveWays.RegisteredDevicesGenerator\HiveWays.RegisteredDevicesGenerator.csproj", "{0C69395F-AEA2-49B0-8906-9933A36EAC5F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -43,10 +43,10 @@ Global
 		{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{CC5E7D79-4881-4353-B225-433B9180A29E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CC5E7D79-4881-4353-B225-433B9180A29E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CC5E7D79-4881-4353-B225-433B9180A29E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CC5E7D79-4881-4353-B225-433B9180A29E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C69395F-AEA2-49B0-8906-9933A36EAC5F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C69395F-AEA2-49B0-8906-9933A36EAC5F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C69395F-AEA2-49B0-8906-9933A36EAC5F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C69395F-AEA2-49B0-8906-9933A36EAC5F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
