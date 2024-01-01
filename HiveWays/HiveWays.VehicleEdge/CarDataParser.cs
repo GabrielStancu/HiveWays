@@ -1,6 +1,7 @@
 using HiveWays.Business.ServiceBusClient;
 using HiveWays.Infrastructure.Factories;
 using HiveWays.VehicleEdge.CarDataCsvParser;
+using HiveWays.VehicleEdge.Configuration;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -14,11 +15,11 @@ public class CarDataParser
 
     public CarDataParser(ICarDataCsvParser csvParser,
         IServiceBusSenderFactory senderFactory,
-        ServiceBusConfiguration serviceBusConfiguration,
+        CarEventsServiceBusConfiguration serviceBusConfiguration,
         ILogger<CarDataParser> logger)
     {
         _csvParser = csvParser;
-        _senderClient = senderFactory.GetServiceBusSenderClient(serviceBusConfiguration.ConnectionString, serviceBusConfiguration.QueueName);
+        _senderClient = senderFactory.GetServiceBusSenderClient(serviceBusConfiguration.ConnectionString, serviceBusConfiguration.EventReceivedQueueName);
         _logger = logger;
     }
 

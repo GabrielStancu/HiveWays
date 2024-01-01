@@ -24,10 +24,7 @@ var host = new HostBuilder()
         services.AddConfiguration<IngestionConfiguration>("IngestionValidation");
         services.AddConfiguration<CosmosDbConfiguration>("RegisteredDevices");
         services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
-        services.AddSingleton<IServiceBusConfigurationFactory, ServiceBusConfigurationFactory>();
-        services.AddConfiguration<ServiceBusConfiguration>(ServiceBusMessageType.AlertReceived.ToString());
-        services.AddConfiguration<ServiceBusConfiguration>(ServiceBusMessageType.StatusReceived.ToString());
-        services.AddConfiguration<ServiceBusConfiguration>(ServiceBusMessageType.TripReceived.ToString());
+        services.AddConfiguration<RoutingServiceBusConfiguration>("RoutingServiceBus");
     })
     .Build();
 

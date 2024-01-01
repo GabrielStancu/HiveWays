@@ -18,8 +18,8 @@ public class DataIngestionOrchestrator
     private readonly ICosmosDbClient<BaseDevice> _itemCosmosClient;
     private readonly ITableStorageClient<DataPointEntity> _tableStorageClient;
     private readonly IServiceBusSenderFactory _serviceBusSenderFactory;
-    private readonly IServiceBusConfigurationFactory _serviceBusConfigurationFactory;
     private readonly IngestionConfiguration _ingestionConfiguration;
+    private readonly RoutingServiceBusConfiguration _routingServiceBusConfiguration;
     private readonly ILogger<DataIngestionOrchestrator> _logger;
     private readonly DateTime _timeReference;
 
@@ -27,15 +27,15 @@ public class DataIngestionOrchestrator
         ICosmosDbClient<BaseDevice> itemCosmosClient,
         ITableStorageClient<DataPointEntity> tableStorageClient,
         IServiceBusSenderFactory serviceBusSenderFactory,
-        IServiceBusConfigurationFactory serviceBusConfigurationFactory,
         IngestionConfiguration ingestionConfiguration,
+        RoutingServiceBusConfiguration routingServiceBusConfiguration,
         ILogger<DataIngestionOrchestrator> logger)
     {
         _itemCosmosClient = itemCosmosClient;
         _tableStorageClient = tableStorageClient;
         _serviceBusSenderFactory = serviceBusSenderFactory;
-        _serviceBusConfigurationFactory = serviceBusConfigurationFactory;
         _ingestionConfiguration = ingestionConfiguration;
+        _routingServiceBusConfiguration = routingServiceBusConfiguration;
         _logger = logger;
         _timeReference = DateTime.UtcNow;
     }
@@ -125,10 +125,10 @@ public class DataIngestionOrchestrator
             Heading = dataPointEntity.Heading
         };
         var messageType = ServiceBusMessageType.StatusReceived; // TODO: get this dynamically, if alert or traffic or trip
-        var configuration = _serviceBusConfigurationFactory.GetServiceBusConfiguration(messageType.ToString());
-        var sender = _serviceBusSenderFactory.GetServiceBusSenderClient(configuration.ConnectionString, configuration.QueueName);
+        var queue = GetRoutingQueue(messageType);
+        var sender = _serviceBusSenderFactory.GetServiceBusSenderClient(_routingServiceBusConfiguration.ConnectionString, queue);
 
-        _logger.LogInformation("Routing message {MessageToRoute} to queue {QueueRoute}", JsonSerializer.Serialize(message), configuration.QueueName);
+        _logger.LogInformation("Routing message {MessageToRoute} to queue {QueueRoute}", JsonSerializer.Serialize(message), queue);
         await sender.SendMessageAsync(message);
     }
 
@@ -143,5 +143,20 @@ public class DataIngestionOrchestrator
         }
 
         return isRegisteredItem;
+    }
+
+    private string GetRoutingQueue(ServiceBusMessageType messageType)
+    {
+        switch (messageType)
+        {
+            case ServiceBusMessageType.AlertReceived:
+                return _routingServiceBusConfiguration.AlertQueueName;
+            case ServiceBusMessageType.StatusReceived:
+                return _routingServiceBusConfiguration.StatusQueueName;
+            case ServiceBusMessageType.TripReceived:
+                return _routingServiceBusConfiguration.TripQueueName;
+            default:
+                throw new NotImplementedException($"Message of type {messageType} is not supported");
+        }
     }
 }

@@ -1,7 +1,7 @@
 using HiveWays.Business.Extensions;
-using HiveWays.Business.ServiceBusClient;
 using HiveWays.Infrastructure.Factories;
 using HiveWays.VehicleEdge.CarDataCsvParser;
+using HiveWays.VehicleEdge.Configuration;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -15,7 +15,7 @@ var host = new HostBuilder()
 
         services.AddScoped<ICarDataCsvParser, CarDataCsvParser>();
         services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
-        services.AddConfiguration<ServiceBusConfiguration>("CarInfoServiceBus");
+        services.AddConfiguration<CarEventsServiceBusConfiguration>("CarEventsServiceBus");
     })
     .Build();
 

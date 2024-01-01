@@ -15,7 +15,7 @@ public class DataPointReceiver
     }
 
     [Function(nameof(DataPointReceiver))]
-    public async Task Run([ServiceBusTrigger("%CarInfoServiceBus:QueueName%", Connection = "CarInfoServiceBus:ConnectionString")] ServiceBusReceivedMessage message,
+    public async Task Run([ServiceBusTrigger("%CarEventsServiceBus:EventReceivedQueueName%", Connection = "CarEventsServiceBus:ConnectionString")] ServiceBusReceivedMessage message,
         [DurableClient] DurableTaskClient client,
         FunctionContext executionContext)
     {
