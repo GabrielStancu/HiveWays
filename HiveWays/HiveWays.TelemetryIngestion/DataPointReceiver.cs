@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Azure.Messaging.ServiceBus;
+using HiveWays.Domain.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
@@ -21,7 +23,8 @@ public class DataPointReceiver
     {
         _logger.LogInformation("Starting ingestion pipeline...");
 
-        var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DataIngestionOrchestrator), message);
+        var inputDataPoint = JsonSerializer.Deserialize<DataPoint>(message.Body);
+        var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DataIngestionOrchestrator), inputDataPoint);
 
         _logger.LogInformation("Finished ingestion pipeline run with instance id {IngestionPipelineInstanceId}", instanceId);
     }

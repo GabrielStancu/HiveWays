@@ -52,7 +52,7 @@ public class DataIngestionOrchestrator
 
         var isValidInput = await context.CallActivityAsync<bool>(nameof(ValidateDataPoint), inputDataPoint);
 
-        if (isValidInput)
+        if (!isValidInput)
             return false;
 
         var dataPointEntity = await context.CallActivityAsync<DataPointEntity>(nameof(EnrichDataPoint), inputDataPoint);
@@ -134,15 +134,23 @@ public class DataIngestionOrchestrator
 
     private async Task<bool> IsItemRegisteredAsync(int id)
     {
-        var registeredItems = await _itemCosmosClient.GetDocumentsByQueryAsync(i => i.ExternalId == id);
-        var isRegisteredItem = registeredItems.Single() != null;
-
-        if (!isRegisteredItem)
+        try
         {
-            _logger.LogError("Item with id could not be found as registered item: {UnregisteredItemId}", id);
-        }
+            var registeredItems = await _itemCosmosClient.GetDocumentsByQueryAsync(i => i.ExternalId == id);
+            var isRegisteredItem = registeredItems.Single() != null;
 
-        return isRegisteredItem;
+            if (!isRegisteredItem)
+            {
+                _logger.LogError("Item with id could not be found as registered item: {UnregisteredItemId}", id);
+            }
+
+            return isRegisteredItem;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Encountered exception while validating device: {ValidationExceptionMessage} @ {ValidationExceptionStackTrace}", ex.Message, ex.StackTrace);
+            return false;
+        }
     }
 
     private string GetRoutingQueue(ServiceBusMessageType messageType)

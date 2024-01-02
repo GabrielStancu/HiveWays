@@ -1,5 +1,4 @@
-﻿using System.Net;
-using Microsoft.Azure.Cosmos;
+﻿using Microsoft.Azure.Cosmos;
 using HiveWays.Business.CosmosDbClient;
 using Microsoft.Extensions.Logging;
 using HiveWays.Domain.Documents;
@@ -66,12 +65,17 @@ public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseDevice
     {
         try
         {
+            var results = new List<T>();
             var container = GetContainerClient();
-            var results = await Task.Run(() =>
+            var sqlQuery = "SELECT * FROM c";
+            var queryDefinition = new QueryDefinition(sqlQuery);
+            var iterator = container.GetItemQueryIterator<T>(queryDefinition);
+
+            while (iterator.HasMoreResults)
             {
-                var queryable = container.GetItemLinqQueryable<T>();
-                return queryable.Where(query);
-            });
+                var response = await iterator.ReadNextAsync();
+                results.AddRange(response.Resource.Where(query));
+            }
 
             return results;
         }
