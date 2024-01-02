@@ -2,6 +2,8 @@
 using HiveWays.Business.CosmosDbClient;
 using Microsoft.Extensions.Logging;
 using HiveWays.Domain.Documents;
+using HiveWays.Infrastructure.Utils;
+using Microsoft.Azure.Cosmos.Linq;
 
 namespace HiveWays.Infrastructure.Clients;
 
@@ -61,30 +63,23 @@ public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseDevice
         }
     }
 
-    public async Task<IEnumerable<T>> GetDocumentsByQueryAsync(Func<T, bool> query)
+    public async Task<IEnumerable<T>> GetDocumentsByQueryAsync(Func<IOrderedQueryable<T>, IOrderedQueryable<T>> query, string continuationToken = null)
     {
-        try
-        {
-            var results = new List<T>();
-            var container = GetContainerClient();
-            var sqlQuery = "SELECT * FROM c";
-            var queryDefinition = new QueryDefinition(sqlQuery);
-            var iterator = container.GetItemQueryIterator<T>(queryDefinition);
+        var requestOptions = GetQueryRequestOptions();
+        var containerClient = GetContainerClient();
+        var queryable = query(containerClient.GetItemLinqQueryable<T>(false, continuationToken, requestOptions));
+        var results = new ContinuationList<T>();
 
-            while (iterator.HasMoreResults)
-            {
-                var response = await iterator.ReadNextAsync();
-                results.AddRange(response.Resource.Where(query));
-            }
+        using var feedIterator = queryable.ToFeedIterator();
 
-            return results;
-        }
-        catch (Exception ex)
+        while (feedIterator.HasMoreResults)
         {
-            _logger.LogError("Encountered error while fetching entities by query. " +
-                             "Exception: {CosmosAllByQueryException} @ {CosmosAllByQueryStackTrace}", ex.Message, ex.StackTrace);
-            throw;
+            var response = await feedIterator.ReadNextAsync();
+            results.AddRange(response.ToList());
+            results.ContinuationToken = response.ContinuationToken;
         }
+
+        return results;
     }
 
     public async Task UpsertDocumentAsync(T entity)
@@ -119,5 +114,16 @@ public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseDevice
         var container = _client.GetContainer(_configuration.DatabaseId, _configuration.ContainerName);
 
         return container;
+    }
+
+    private QueryRequestOptions GetQueryRequestOptions()
+    {
+        var requestOptions = new QueryRequestOptions
+        {
+            MaxConcurrency = 25,
+            MaxItemCount = 50
+        };
+
+        return requestOptions;
     }
 }

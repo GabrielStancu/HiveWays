@@ -136,15 +136,19 @@ public class DataIngestionOrchestrator
     {
         try
         {
-            var registeredItems = await _itemCosmosClient.GetDocumentsByQueryAsync(i => i.ExternalId == id);
-            var isRegisteredItem = registeredItems.Single() != null;
-
-            if (!isRegisteredItem)
+            var registeredDevices = await _itemCosmosClient.GetDocumentsByQueryAsync(devices =>
+            {
+                var filteredDevices = devices.Where(d => d.ExternalId == id);
+                return filteredDevices as IOrderedQueryable<BaseDevice>;
+            });
+                
+            var isRegisteredDevice = registeredDevices.Single() != null;
+            if (!isRegisteredDevice)
             {
                 _logger.LogError("Item with id could not be found as registered item: {UnregisteredItemId}", id);
             }
 
-            return isRegisteredItem;
+            return isRegisteredDevice;
         }
         catch (Exception ex)
         {
