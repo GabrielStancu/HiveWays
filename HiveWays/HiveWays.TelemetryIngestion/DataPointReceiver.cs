@@ -23,8 +23,8 @@ public class DataPointReceiver
     {
         _logger.LogInformation("Starting ingestion pipeline...");
 
-        var inputDataPoint = JsonSerializer.Deserialize<DataPoint>(message.Body);
-        var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DataIngestionOrchestrator), inputDataPoint);
+        var inputDataPoints = JsonSerializer.Deserialize<IEnumerable<DataPoint>>(message.Body);
+        var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DataIngestionOrchestrator), inputDataPoints);
 
         _logger.LogInformation("Finished ingestion pipeline run with instance id {IngestionPipelineInstanceId}", instanceId);
     }

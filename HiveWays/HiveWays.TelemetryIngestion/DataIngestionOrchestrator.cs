@@ -1,6 +1,5 @@
 using System.Text.Json;
 using HiveWays.Business.CosmosDbClient;
-using HiveWays.Business.ServiceBusClient;
 using HiveWays.Business.TableStorageClient;
 using HiveWays.Domain.Documents;
 using HiveWays.Domain.Entities;
@@ -41,44 +40,47 @@ public class DataIngestionOrchestrator
     }
 
     [Function(nameof(DataIngestionOrchestrator))]
-    public async Task<bool> RunOrchestrator(
+    public async Task RunOrchestrator(
         [OrchestrationTrigger] TaskOrchestrationContext context)
     {
-        _logger.LogInformation("Starting ingestion pipeline...");
+        var inputDataPoints = context.GetInput<IEnumerable<DataPoint>>().ToList();
 
-        var inputDataPoint = context.GetInput<DataPoint>();
+        _logger.LogInformation("Received input data points in batch of size {InputDataPointsBatchSize}. Starting ingestion pipeline...", inputDataPoints.Count);
+        
+        var validationResults = await context.CallActivityAsync<Dictionary<DataPoint, bool>>(nameof(ValidateDataPoint), inputDataPoints);
+        foreach (var validationResult in validationResults)
+        {
+            if (validationResult.Value)
+            {
+                var inputDataPoint = validationResult.Key;
+                var dataPointEntity = await context.CallActivityAsync<DataPointEntity>(nameof(EnrichDataPoint), inputDataPoint);
 
-        _logger.LogInformation("Received input data point {InputDataPoint}", JsonSerializer.Serialize(inputDataPoint));
-
-        var isValidInput = await context.CallActivityAsync<bool>(nameof(ValidateDataPoint), inputDataPoint);
-
-        if (!isValidInput)
-            return false;
-
-        var dataPointEntity = await context.CallActivityAsync<DataPointEntity>(nameof(EnrichDataPoint), inputDataPoint);
-
-        await context.CallActivityAsync(nameof(StoreEnrichedDataPoint), dataPointEntity);
-        await context.CallActivityAsync(nameof(RouteMessage), dataPointEntity);
-
-        return true;
+                await context.CallActivityAsync(nameof(StoreEnrichedDataPoint), dataPointEntity);
+                await context.CallActivityAsync(nameof(RouteMessage), dataPointEntity);
+            }
+        }
     }
 
     [Function(nameof(ValidateDataPoint))]
-    public async Task<bool> ValidateDataPoint([ActivityTrigger] DataPoint dataPoint)
+    public async Task<IDictionary<DataPoint, bool>> ValidateDataPoint([ActivityTrigger] IEnumerable<DataPoint> dataPoints)
     {
-        if (dataPoint.Id < _ingestionConfiguration.MinId || dataPoint.Id > _ingestionConfiguration.MaxId)
-        {
-            _logger.LogError("Item is not registered, id: {UnregisteredItemId}", dataPoint.Id);
-            return false;
-        }
+        var validationResults = new Dictionary<DataPoint, bool>();
 
-        if (dataPoint.Speed < _ingestionConfiguration.MinSpeed || dataPoint.Speed > _ingestionConfiguration.MaxSpeed)
+        foreach (var dataPoint in dataPoints)
         {
-            _logger.LogError("Invalid speed indicating error data: {InvalidSpeed} m/s", dataPoint.Speed);
-            return false;
+            var validationResult = ValidateDataPointRange(dataPoint);
+            validationResults.Add(validationResult.Key, validationResult.Value);
         }
+        
+        var validIds = validationResults.Where(kvp => kvp.Value)
+            .Select(kvp => kvp.Key.Id)
+            .Distinct()
+            .ToList();
+        var registrationResults = await AreIdsRegisteredAsync(validIds);
 
-        return await IsItemRegisteredAsync(dataPoint.Id);
+        // TODO: replace the temporary true results with values of the registration check
+
+        return validationResults;
     }
 
     [Function(nameof(EnrichDataPoint))]
@@ -132,28 +134,55 @@ public class DataIngestionOrchestrator
         await sender.SendMessageAsync(message);
     }
 
-    private async Task<bool> IsItemRegisteredAsync(int id)
+    private KeyValuePair<DataPoint, bool> ValidateDataPointRange(DataPoint dataPoint)
     {
+        if (dataPoint.Id < _ingestionConfiguration.MinId || dataPoint.Id > _ingestionConfiguration.MaxId)
+        {
+            _logger.LogError("Item is not registered, id: {UnregisteredItemId}", dataPoint.Id);
+            return new KeyValuePair<DataPoint, bool>(dataPoint, false);
+        }
+
+        if (dataPoint.Speed < _ingestionConfiguration.MinSpeed || dataPoint.Speed > _ingestionConfiguration.MaxSpeed)
+        {
+            _logger.LogError("Invalid speed indicating error data: {InvalidSpeed} m/s", dataPoint.Speed);
+            return new KeyValuePair<DataPoint, bool>(dataPoint, false);
+        }
+
+        return new KeyValuePair<DataPoint, bool>(dataPoint, true);
+    }
+
+    private async Task<Dictionary<int, bool>> AreIdsRegisteredAsync(List<int> ids)
+    {
+        var registrationResults = new Dictionary<int, bool>();
+        foreach (var id in ids)
+        {
+            registrationResults.Add(id, false);
+        }
+
         try
         {
-            var registeredDevices = await _itemCosmosClient.GetDocumentsByQueryAsync(devices =>
+            var registeredDevices = (await _itemCosmosClient.GetDocumentsByQueryAsync(devices =>
             {
-                var filteredDevices = devices.Where(d => d.ExternalId == id);
+                var filteredDevices = devices.Where(d => ids.Contains(d.ExternalId));
                 return filteredDevices as IOrderedQueryable<BaseDevice>;
-            });
-                
-            var isRegisteredDevice = registeredDevices.Single() != null;
-            if (!isRegisteredDevice)
+            })).ToList();
+
+            foreach (var id in ids)
             {
-                _logger.LogError("Item with id could not be found as registered item: {UnregisteredItemId}", id);
+                var isRegisteredDevice = registeredDevices.FirstOrDefault(rd => rd.ExternalId == id) != null;
+                if (!isRegisteredDevice)
+                {
+                    _logger.LogError("Item with id could not be found as registered item: {UnregisteredItemId}", id);
+                }
+                registrationResults.Add(id, isRegisteredDevice);
             }
 
-            return isRegisteredDevice;
+            return registrationResults;
         }
         catch (Exception ex)
         {
-            _logger.LogError("Encountered exception while validating device: {ValidationExceptionMessage} @ {ValidationExceptionStackTrace}", ex.Message, ex.StackTrace);
-            return false;
+            _logger.LogError("Encountered exception while validating devices: {ValidationExceptionMessage} @ {ValidationExceptionStackTrace}", ex.Message, ex.StackTrace);
+            return registrationResults;
         }
     }
 

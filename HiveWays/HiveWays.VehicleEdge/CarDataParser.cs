@@ -1,3 +1,4 @@
+using HiveWays.Business.Extensions;
 using HiveWays.Business.ServiceBusClient;
 using HiveWays.Infrastructure.Factories;
 using HiveWays.VehicleEdge.CarDataCsvParser;
@@ -31,10 +32,10 @@ public class CarDataParser
             _logger.LogInformation("Parsing file {File}", file);
             var dataPoints = _csvParser.ParseCsv(stream);
 
-            foreach (var dataPoint in dataPoints)
+            foreach (var dataPointsBatch in dataPoints.Batch(50))
             {
                 _logger.LogInformation("Sending data point to service bus");
-                await _senderClient.SendMessageAsync(dataPoint);
+                await _senderClient.SendMessageAsync(dataPointsBatch);
             }
         }
         catch (Exception ex)
