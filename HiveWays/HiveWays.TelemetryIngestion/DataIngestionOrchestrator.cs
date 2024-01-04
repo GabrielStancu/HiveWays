@@ -47,13 +47,13 @@ public class DataIngestionOrchestrator
 
         _logger.LogInformation("Received input data points in batch of size {InputDataPointsBatchSize}. Starting ingestion pipeline...", inputDataPoints.Count);
         
-        var validationResults = await context.CallActivityAsync<Dictionary<DataPoint, bool>>(nameof(ValidateDataPoint), inputDataPoints);
-        foreach (var validationResult in validationResults)
+        var validationResults = await context.CallActivityAsync<List<bool>>(nameof(ValidateDataPoints), inputDataPoints);
+
+        for (int idx = 0; idx < inputDataPoints.Count; idx++)
         {
-            if (validationResult.Value)
+            if (validationResults[idx])
             {
-                var inputDataPoint = validationResult.Key;
-                var dataPointEntity = await context.CallActivityAsync<DataPointEntity>(nameof(EnrichDataPoint), inputDataPoint);
+                var dataPointEntity = await context.CallActivityAsync<DataPointEntity>(nameof(EnrichDataPoint), inputDataPoints[idx]);
 
                 await context.CallActivityAsync(nameof(StoreEnrichedDataPoint), dataPointEntity);
                 await context.CallActivityAsync(nameof(RouteMessage), dataPointEntity);
@@ -61,8 +61,8 @@ public class DataIngestionOrchestrator
         }
     }
 
-    [Function(nameof(ValidateDataPoint))]
-    public async Task<IDictionary<DataPoint, bool>> ValidateDataPoint([ActivityTrigger] IEnumerable<DataPoint> dataPoints)
+    [Function(nameof(ValidateDataPoints))]
+    public async Task<List<bool>> ValidateDataPoints([ActivityTrigger] IEnumerable<DataPoint> dataPoints)
     {
         var validationResults = new Dictionary<DataPoint, bool>();
 
@@ -78,9 +78,16 @@ public class DataIngestionOrchestrator
             .ToList();
         var registrationResults = await AreIdsRegisteredAsync(validIds);
 
-        // TODO: replace the temporary true results with values of the registration check
+        foreach (var validationResult in validationResults.Where(kvp => kvp.Value))
+        {
+            var id = validationResult.Key.Id;
+            if (registrationResults.Keys.Contains(id))
+            {
+                validationResults[validationResult.Key] = registrationResults[id];
+            }
+        }
 
-        return validationResults;
+        return validationResults.Values.ToList();
     }
 
     [Function(nameof(EnrichDataPoint))]
@@ -174,7 +181,7 @@ public class DataIngestionOrchestrator
                 {
                     _logger.LogError("Item with id could not be found as registered item: {UnregisteredItemId}", id);
                 }
-                registrationResults.Add(id, isRegisteredDevice);
+                registrationResults[id] = isRegisteredDevice;
             }
 
             return registrationResults;
