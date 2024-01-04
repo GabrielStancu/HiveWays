@@ -11,15 +11,18 @@ namespace HiveWays.VehicleEdge;
 public class CarDataParser
 {
     private readonly ICarDataCsvParser _csvParser;
+    private readonly DeviceInfoConfiguration _deviceInfoConfiguration;
     private readonly IServiceBusSenderClient _senderClient;
     private readonly ILogger<CarDataParser> _logger;
 
     public CarDataParser(ICarDataCsvParser csvParser,
         IServiceBusSenderFactory senderFactory,
         CarEventsServiceBusConfiguration serviceBusConfiguration,
+        DeviceInfoConfiguration deviceInfoConfiguration,
         ILogger<CarDataParser> logger)
     {
         _csvParser = csvParser;
+        _deviceInfoConfiguration = deviceInfoConfiguration;
         _senderClient = senderFactory.GetServiceBusSenderClient(serviceBusConfiguration.ConnectionString, serviceBusConfiguration.EventReceivedQueueName);
         _logger = logger;
     }
@@ -32,7 +35,7 @@ public class CarDataParser
             _logger.LogInformation("Parsing file {File}", file);
             var dataPoints = _csvParser.ParseCsv(stream);
 
-            foreach (var dataPointsBatch in dataPoints.Batch(50))
+            foreach (var dataPointsBatch in dataPoints.Batch(_deviceInfoConfiguration.BatchSize))
             {
                 _logger.LogInformation("Sending data point to service bus");
                 await _senderClient.SendMessageAsync(dataPointsBatch);

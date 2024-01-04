@@ -16,6 +16,7 @@ var host = new HostBuilder()
         services.AddScoped<ICarDataCsvParser, CarDataCsvParser>();
         services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
         services.AddConfiguration<CarEventsServiceBusConfiguration>("CarEventsServiceBus");
+        services.AddConfiguration<DeviceInfoConfiguration>("DeviceInfo");
     })
     .Build();
 

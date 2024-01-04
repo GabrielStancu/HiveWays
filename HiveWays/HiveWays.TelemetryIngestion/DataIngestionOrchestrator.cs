@@ -49,14 +49,24 @@ public class DataIngestionOrchestrator
         
         var validationResults = await context.CallActivityAsync<List<bool>>(nameof(ValidateDataPoints), inputDataPoints);
 
+        if (inputDataPoints.Count != validationResults.Count)
+        {
+            string errorMessage = "Input length different from validation results. Aborting further processing";
+            _logger.LogError(errorMessage);
+            throw new InvalidOperationException(errorMessage);
+        }
+
         for (int idx = 0; idx < inputDataPoints.Count; idx++)
         {
             if (validationResults[idx])
             {
                 var dataPointEntity = await context.CallActivityAsync<DataPointEntity>(nameof(EnrichDataPoint), inputDataPoints[idx]);
-
                 await context.CallActivityAsync(nameof(StoreEnrichedDataPoint), dataPointEntity);
                 await context.CallActivityAsync(nameof(RouteMessage), dataPointEntity);
+            }
+            else
+            {
+                _logger.LogError("Validation for data point {FailedValidationDataPoint} failed", JsonSerializer.Serialize(inputDataPoints[idx]));
             }
         }
     }
@@ -72,20 +82,7 @@ public class DataIngestionOrchestrator
             validationResults.Add(validationResult.Key, validationResult.Value);
         }
         
-        var validIds = validationResults.Where(kvp => kvp.Value)
-            .Select(kvp => kvp.Key.Id)
-            .Distinct()
-            .ToList();
-        var registrationResults = await AreIdsRegisteredAsync(validIds);
-
-        foreach (var validationResult in validationResults.Where(kvp => kvp.Value))
-        {
-            var id = validationResult.Key.Id;
-            if (registrationResults.Keys.Contains(id))
-            {
-                validationResults[validationResult.Key] = registrationResults[id];
-            }
-        }
+        await CheckDevicesRegistrationAsync(validationResults);
 
         return validationResults.Values.ToList();
     }
@@ -156,6 +153,24 @@ public class DataIngestionOrchestrator
         }
 
         return new KeyValuePair<DataPoint, bool>(dataPoint, true);
+    }
+
+    private async Task CheckDevicesRegistrationAsync(Dictionary<DataPoint, bool> validationResults)
+    {
+        var validIds = validationResults.Where(kvp => kvp.Value)
+            .Select(kvp => kvp.Key.Id)
+            .Distinct()
+            .ToList();
+        var registrationResults = await AreIdsRegisteredAsync(validIds);
+
+        foreach (var validationResult in validationResults.Where(kvp => kvp.Value))
+        {
+            var id = validationResult.Key.Id;
+            if (registrationResults.Keys.Contains(id))
+            {
+                validationResults[validationResult.Key] = registrationResults[id];
+            }
+        }
     }
 
     private async Task<Dictionary<int, bool>> AreIdsRegisteredAsync(List<int> ids)
