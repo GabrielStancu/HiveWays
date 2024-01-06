@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using HiveWays.Business.CosmosDbClient;
 using HiveWays.Business.TableStorageClient;
@@ -40,15 +41,12 @@ public class DataIngestionOrchestrator
     }
 
     [Function(nameof(DataIngestionOrchestrator))]
-    public async Task RunOrchestrator(
-        [OrchestrationTrigger] TaskOrchestrationContext context)
+    public async Task RunOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
     {
         var inputDataPoints = context.GetInput<IEnumerable<DataPoint>>().ToList();
 
-        _logger.LogInformation("Received input data points in batch of size {InputDataPointsBatchSize}. Starting ingestion pipeline...", inputDataPoints.Count);
-        
+        // Validate data points
         var validationResults = await context.CallActivityAsync<List<bool>>(nameof(ValidateDataPoints), inputDataPoints);
-
         if (inputDataPoints.Count != validationResults.Count)
         {
             string errorMessage = "Input length different from validation results. Aborting further processing";
@@ -56,85 +54,96 @@ public class DataIngestionOrchestrator
             throw new InvalidOperationException(errorMessage);
         }
 
-        for (int idx = 0; idx < inputDataPoints.Count; idx++)
+        // Enrich data points
+        var validDataPoints = new ConcurrentBag<DataPoint>();
+
+        Parallel.For(0, inputDataPoints.Count, idx =>
         {
             if (validationResults[idx])
             {
-                var dataPointEntity = await context.CallActivityAsync<DataPointEntity>(nameof(EnrichDataPoint), inputDataPoints[idx]);
-                await context.CallActivityAsync(nameof(StoreEnrichedDataPoint), dataPointEntity);
-                await context.CallActivityAsync(nameof(RouteMessage), dataPointEntity);
+                validDataPoints.Add(inputDataPoints[idx]);
             }
             else
             {
-                _logger.LogError("Validation for data point {FailedValidationDataPoint} failed", JsonSerializer.Serialize(inputDataPoints[idx]));
+                _logger.LogError("Validation for data point {FailedValidationDataPoint} failed",
+                    JsonSerializer.Serialize(inputDataPoints[idx]));
             }
-        }
+        });
+
+        var validDataPointEntities = await context.CallActivityAsync<IEnumerable<DataPointEntity>>(nameof(EnrichDataPoints), validDataPoints);
+
+        // Store and route validated points
+        await context.CallActivityAsync(nameof(StoreEnrichedDataPoints), validDataPointEntities);
+        await context.CallActivityAsync(nameof(RouteMessages), validDataPointEntities);
     }
 
     [Function(nameof(ValidateDataPoints))]
     public async Task<List<bool>> ValidateDataPoints([ActivityTrigger] IEnumerable<DataPoint> dataPoints)
     {
-        var validationResults = new Dictionary<DataPoint, bool>();
+        var validationResults = new ConcurrentDictionary<DataPoint, bool>();
 
-        foreach (var dataPoint in dataPoints)
+        Parallel.ForEach(dataPoints, dataPoint =>
         {
             var validationResult = ValidateDataPointRange(dataPoint);
-            validationResults.Add(validationResult.Key, validationResult.Value);
-        }
-        
+            validationResults.TryAdd(validationResult.Key, validationResult.Value);
+        });
+
         await CheckDevicesRegistrationAsync(validationResults);
 
         return validationResults.Values.ToList();
     }
 
-    [Function(nameof(EnrichDataPoint))]
-    public DataPointEntity EnrichDataPoint([ActivityTrigger] DataPoint dataPoint)
+    [Function(nameof(EnrichDataPoints))]
+    public IEnumerable<DataPointEntity> EnrichDataPoints([ActivityTrigger] IEnumerable<DataPoint> dataPoints)
     {
-        var dataPointEntity = new DataPointEntity
+        var entities = new List<DataPointEntity>();
+
+        Parallel.ForEach(dataPoints, dataPoint =>
         {
-            PartitionKey = dataPoint.Id.ToString(),
-            RowKey = _timeReference.AddSeconds(dataPoint.TimeOffsetSeconds).ToString("o"), // TODO: make the simulator generate timestamps properly
-            SpeedMps = dataPoint.Speed,
-            SpeedKmph = dataPoint.Speed * 3.6m,
-            AccelerationMps = dataPoint.Acceleration,
-            AccelerationKmph = dataPoint.Acceleration * 12960,
-            Latitude = _ingestionConfiguration.ReferenceLatitude + dataPoint.Y,
-            Longitude = _ingestionConfiguration.ReferenceLongitude + dataPoint.X,
-            Heading = dataPoint.Heading
-        };
+            var dataPointEntity = new DataPointEntity
+            {
+                PartitionKey = dataPoint.Id.ToString(),
+                RowKey = _timeReference.AddSeconds(dataPoint.TimeOffsetSeconds)
+                    .ToString("o"), // TODO: make the simulator generate timestamps properly
+                SpeedMps = dataPoint.Speed,
+                SpeedKmph = dataPoint.Speed * 3.6m,
+                AccelerationMps = dataPoint.Acceleration,
+                AccelerationKmph = dataPoint.Acceleration * 12960,
+                Latitude = _ingestionConfiguration.ReferenceLatitude + dataPoint.Y,
+                Longitude = _ingestionConfiguration.ReferenceLongitude + dataPoint.X,
+                Heading = dataPoint.Heading
+            };
+            entities.Add(dataPointEntity);
+        });
 
-        _logger.LogInformation("Enriched data point to {EnrichedDataPoint}", JsonSerializer.Serialize(dataPointEntity));
-
-        return dataPointEntity;
+        return entities;
     }
 
-    [Function(nameof(StoreEnrichedDataPoint))]
-    public async Task StoreEnrichedDataPoint([ActivityTrigger] DataPointEntity dataPointEntity)
+    [Function(nameof(StoreEnrichedDataPoints))]
+    public async Task StoreEnrichedDataPoints([ActivityTrigger] IEnumerable<DataPointEntity> dataPointEntities)
     {
-        _logger.LogInformation("Storing data point entity {DataPointEntityToBeStored}", JsonSerializer.Serialize(dataPointEntity));
-        await _tableStorageClient.UpsertEntityAsync(dataPointEntity);
+        await _tableStorageClient.UpsertEntitiesBatchedAsync(dataPointEntities);
     }
 
-    [Function(nameof(RouteMessage))]
-    public async Task RouteMessage([ActivityTrigger] DataPointEntity dataPointEntity)
+    [Function(nameof(RouteMessages))]
+    public async Task RouteMessages([ActivityTrigger] IEnumerable<DataPointEntity> dataPointEntities)
     {
-        var message = new TrafficMessage
+        var message = dataPointEntities.Select(e => new TrafficMessage
         {
-            DeviceId = dataPointEntity.PartitionKey,
-            Timestamp = DateTime.Parse(dataPointEntity.RowKey),
-            SpeedMps = dataPointEntity.SpeedMps,
-            SpeedKmph = dataPointEntity.SpeedKmph,
-            AccelerationMps = dataPointEntity.AccelerationMps,
-            AccelerationKmph = dataPointEntity.AccelerationKmph,
-            Latitude = dataPointEntity.Latitude,
-            Longitude = dataPointEntity.Longitude,
-            Heading = dataPointEntity.Heading
-        };
+            DeviceId = e.PartitionKey,
+            Timestamp = DateTime.Parse(e.RowKey),
+            SpeedMps = e.SpeedMps,
+            SpeedKmph = e.SpeedKmph,
+            AccelerationMps = e.AccelerationMps,
+            AccelerationKmph = e.AccelerationKmph,
+            Latitude = e.Latitude,
+            Longitude = e.Longitude,
+            Heading = e.Heading
+        });
         var messageType = ServiceBusMessageType.StatusReceived; // TODO: get this dynamically, if alert or traffic or trip
         var queue = GetRoutingQueue(messageType);
         var sender = _serviceBusSenderFactory.GetServiceBusSenderClient(_routingServiceBusConfiguration.ConnectionString, queue);
 
-        _logger.LogInformation("Routing message {MessageToRoute} to queue {QueueRoute}", JsonSerializer.Serialize(message), queue);
         await sender.SendMessageAsync(message);
     }
 
@@ -155,22 +164,23 @@ public class DataIngestionOrchestrator
         return new KeyValuePair<DataPoint, bool>(dataPoint, true);
     }
 
-    private async Task CheckDevicesRegistrationAsync(Dictionary<DataPoint, bool> validationResults)
+    private async Task CheckDevicesRegistrationAsync(ConcurrentDictionary<DataPoint, bool> validationResults)
     {
-        var validIds = validationResults.Where(kvp => kvp.Value)
+        var validIds = validationResults
+            .Where(kvp => kvp.Value)
             .Select(kvp => kvp.Key.Id)
             .Distinct()
             .ToList();
         var registrationResults = await AreIdsRegisteredAsync(validIds);
 
-        foreach (var validationResult in validationResults.Where(kvp => kvp.Value))
+        Parallel.ForEach(validationResults.Where(kvp => kvp.Value), validationResult =>
         {
             var id = validationResult.Key.Id;
             if (registrationResults.Keys.Contains(id))
             {
                 validationResults[validationResult.Key] = registrationResults[id];
             }
-        }
+        });
     }
 
     private async Task<Dictionary<int, bool>> AreIdsRegisteredAsync(List<int> ids)

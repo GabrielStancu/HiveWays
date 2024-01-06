@@ -1,6 +1,5 @@
 using HiveWays.Business.CosmosDbClient;
 using HiveWays.Business.Extensions;
-using HiveWays.Business.ServiceBusClient;
 using HiveWays.Business.TableStorageClient;
 using HiveWays.Domain.Documents;
 using HiveWays.Domain.Entities;

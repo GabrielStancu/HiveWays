@@ -21,8 +21,6 @@ public class DataPointReceiver
         [DurableClient] DurableTaskClient client,
         FunctionContext executionContext)
     {
-        _logger.LogInformation("Starting ingestion pipeline...");
-
         var inputDataPoints = JsonSerializer.Deserialize<IEnumerable<DataPoint>>(message.Body);
         var instanceId = await client.ScheduleNewOrchestrationInstanceAsync(nameof(DataIngestionOrchestrator), inputDataPoints);
 

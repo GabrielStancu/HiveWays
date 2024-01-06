@@ -1,7 +1,9 @@
-﻿namespace HiveWays.Business.TableStorageClient;
+﻿using Azure.Data.Tables;
 
-public interface ITableStorageClient<in T> where T : class
+namespace HiveWays.Business.TableStorageClient;
+
+public interface ITableStorageClient<in T> where T : ITableEntity
 {
     Task UpsertEntityAsync(T entity);
-    Task UpsertEntitiesAsync(IEnumerable<T> entities);
+    Task UpsertEntitiesBatchedAsync(IEnumerable<T> entities);
 }

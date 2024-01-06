@@ -1,7 +1,5 @@
-﻿using Azure;
-using Azure.Data.Tables;
+﻿using Azure.Data.Tables;
 using HiveWays.Business.TableStorageClient;
-using Microsoft.Extensions.Logging;
 
 namespace HiveWays.Infrastructure.Clients;
 
@@ -9,12 +7,10 @@ public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITa
 {
     private readonly TableStorageConfiguration _configuration;
     private TableClient _tableClient;
-    private readonly ILogger _logger;
 
-    public TableStorageClient(TableStorageConfiguration configuration, ILogger<TableStorageClient<T>> logger)
+    public TableStorageClient(TableStorageConfiguration configuration)
     {
         _configuration = configuration;
-        _logger = logger;
     }
 
     public async Task UpsertEntityAsync(T entity)
@@ -24,28 +20,20 @@ public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITa
         await _tableClient.UpsertEntityAsync(entity);
     }
 
-    public async Task UpsertEntitiesAsync(IEnumerable<T> entities)
+    public async Task UpsertEntitiesBatchedAsync(IEnumerable<T> entities)
     {
         await InitTableClientAsync();
 
-        var upsertTasks = new List<Task>();
+        var batch = new List<TableTransactionAction>();
 
         foreach (var entity in entities)
         {
-            var upsertTask = UpsertEntityInternalAsync(entity);
-            upsertTasks.Add(upsertTask);
+            batch.Add(new TableTransactionAction(TableTransactionActionType.UpsertMerge, entity));
         }
 
-        await Task.WhenAll(upsertTasks);
+        await _tableClient.SubmitTransactionAsync(batch);
     }
 
-    private async Task<Response> UpsertEntityInternalAsync(T entity)
-    {
-        var response = await _tableClient.UpsertEntityAsync(entity);
-        _logger.LogInformation("Upserted alert entity with PartitionKey {PartitionKey}, RowKey {RowKey}", entity.PartitionKey, entity.RowKey);
-
-        return response;
-    }
 
     private async Task InitTableClientAsync()
     {
@@ -55,7 +43,5 @@ public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITa
         var serviceClient = new TableServiceClient(_configuration.ConnectionString);
         _tableClient = serviceClient.GetTableClient(_configuration.TableName);
         await _tableClient.CreateIfNotExistsAsync();
-
-        _logger.LogInformation("Created table client for {TableName}", _configuration.TableName);
     }
 }
