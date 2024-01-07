@@ -3,6 +3,5 @@
 public enum ServiceBusMessageType
 {
     AlertReceived,
-    StatusReceived,
-    TripReceived
+    StatusReceived
 }

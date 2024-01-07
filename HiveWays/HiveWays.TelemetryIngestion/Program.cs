@@ -22,7 +22,6 @@ var host = new HostBuilder()
         services.AddSingleton<ITableStorageClient<DataPointEntity>, TableStorageClient<DataPointEntity>>();
         services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
         services.AddScoped<IDataPointValidator, DataPointValidator>();
-        services.AddScoped<IMessageRouter, MessageRouter>();
         services.AddConfiguration<TableStorageConfiguration>("StorageAccount");
         services.AddConfiguration<IngestionConfiguration>("IngestionValidation");
         services.AddConfiguration<CosmosDbConfiguration>("RegisteredDevices");

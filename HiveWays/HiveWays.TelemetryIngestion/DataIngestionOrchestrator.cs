@@ -19,7 +19,6 @@ public class DataIngestionOrchestrator
     private readonly IServiceBusSenderFactory _serviceBusSenderFactory;
     private readonly IngestionConfiguration _ingestionConfiguration;
     private readonly RoutingServiceBusConfiguration _routingServiceBusConfiguration;
-    private readonly IMessageRouter _messageRouter;
     private readonly ILogger<DataIngestionOrchestrator> _logger;
     
     private readonly DateTime _timeReference;
@@ -30,7 +29,6 @@ public class DataIngestionOrchestrator
         IServiceBusSenderFactory serviceBusSenderFactory,
         IngestionConfiguration ingestionConfiguration,
         RoutingServiceBusConfiguration routingServiceBusConfiguration,
-        IMessageRouter messageRouter,
         ILogger<DataIngestionOrchestrator> logger)
     {
         _dataPointValidator = dataPointValidator;
@@ -38,7 +36,6 @@ public class DataIngestionOrchestrator
         _serviceBusSenderFactory = serviceBusSenderFactory;
         _ingestionConfiguration = ingestionConfiguration;
         _routingServiceBusConfiguration = routingServiceBusConfiguration;
-        _messageRouter = messageRouter;
         _logger = logger;
         _timeReference = DateTime.UtcNow;
     }
@@ -53,7 +50,12 @@ public class DataIngestionOrchestrator
 
         if (storedDataPointsBatch)
         {
-            await context.CallActivityAsync(nameof(RouteMessages), validDataPointEntities);
+            var routingData = new RoutingData
+            {
+                DataPointEntities = validDataPointEntities,
+                MessageType = ServiceBusMessageType.StatusReceived // TODO: get this dynamically, if alert or traffic or trip
+            };
+            await context.CallActivityAsync(nameof(RouteMessages), routingData);
         }
     }
 
@@ -150,9 +152,9 @@ public class DataIngestionOrchestrator
     }
 
     [Function(nameof(RouteMessages))]
-    public async Task RouteMessages([ActivityTrigger] IEnumerable<DataPointEntity> dataPointEntities)
+    public async Task RouteMessages([ActivityTrigger] RoutingData routingData)
     {
-        var message = dataPointEntities.Select(e => new TrafficMessage
+        var message = routingData.DataPointEntities.Select(e => new TrafficMessage
         {
             DeviceId = e.PartitionKey,
             Timestamp = DateTime.Parse(e.RowKey),
@@ -164,8 +166,9 @@ public class DataIngestionOrchestrator
             Longitude = e.Longitude,
             Heading = e.Heading
         });
-        var messageType = ServiceBusMessageType.StatusReceived; // TODO: get this dynamically, if alert or traffic or trip
-        var queue = _messageRouter.GetRoutingQueue(messageType);
+        var queue = routingData.MessageType == ServiceBusMessageType.StatusReceived
+            ? _routingServiceBusConfiguration.StatusQueueName
+            : _routingServiceBusConfiguration.AlertQueueName;
         var sender = _serviceBusSenderFactory.GetServiceBusSenderClient(_routingServiceBusConfiguration.ConnectionString, queue);
 
         await sender.SendMessageAsync(message);
