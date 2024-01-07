@@ -5,6 +5,7 @@ using HiveWays.Domain.Documents;
 using HiveWays.Domain.Entities;
 using HiveWays.Infrastructure.Clients;
 using HiveWays.Infrastructure.Factories;
+using HiveWays.TelemetryIngestion.Business;
 using HiveWays.TelemetryIngestion.Configuration;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,10 +20,12 @@ var host = new HostBuilder()
 
         services.AddSingleton<ICosmosDbClient<BaseDevice>, CosmosDbClient<BaseDevice>>();
         services.AddSingleton<ITableStorageClient<DataPointEntity>, TableStorageClient<DataPointEntity>>();
+        services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
+        services.AddScoped<IDataPointValidator, DataPointValidator>();
+        services.AddScoped<IMessageRouter, MessageRouter>();
         services.AddConfiguration<TableStorageConfiguration>("StorageAccount");
         services.AddConfiguration<IngestionConfiguration>("IngestionValidation");
         services.AddConfiguration<CosmosDbConfiguration>("RegisteredDevices");
-        services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
         services.AddConfiguration<RoutingServiceBusConfiguration>("RoutingServiceBus");
     })
     .Build();

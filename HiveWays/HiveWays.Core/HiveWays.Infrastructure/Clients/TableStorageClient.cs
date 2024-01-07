@@ -20,7 +20,12 @@ public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITa
         await _tableClient.UpsertEntityAsync(entity);
     }
 
-    public async Task UpsertEntitiesBatchedAsync(IEnumerable<T> entities)
+    // Notes:
+    // 1. This works across multiple partition keys only with Azurite (locally). In Azure this has to be batched by partition key
+    // 2. Max size: 100 items/4MB
+    // 3. If moved to Azure storage, we should change the partition key, maybe to city instead of car id?
+    // Source: https://medium.com/medialesson/azure-data-tables-baabaea75656
+    public async Task AddEntitiesBatchedAsync(IEnumerable<T> entities)
     {
         await InitTableClientAsync();
 
@@ -28,7 +33,7 @@ public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITa
 
         foreach (var entity in entities)
         {
-            batch.Add(new TableTransactionAction(TableTransactionActionType.UpsertMerge, entity));
+            batch.Add(new TableTransactionAction(TableTransactionActionType.Add, entity));
         }
 
         await _tableClient.SubmitTransactionAsync(batch);

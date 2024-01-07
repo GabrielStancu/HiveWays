@@ -1,11 +1,10 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using HiveWays.Business.CosmosDbClient;
 using HiveWays.Business.TableStorageClient;
-using HiveWays.Domain.Documents;
 using HiveWays.Domain.Entities;
 using HiveWays.Domain.Models;
 using HiveWays.Infrastructure.Factories;
+using HiveWays.TelemetryIngestion.Business;
 using HiveWays.TelemetryIngestion.Configuration;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
@@ -15,27 +14,31 @@ namespace HiveWays.TelemetryIngestion;
 
 public class DataIngestionOrchestrator
 {
-    private readonly ICosmosDbClient<BaseDevice> _itemCosmosClient;
+    private readonly IDataPointValidator _dataPointValidator;
     private readonly ITableStorageClient<DataPointEntity> _tableStorageClient;
     private readonly IServiceBusSenderFactory _serviceBusSenderFactory;
     private readonly IngestionConfiguration _ingestionConfiguration;
     private readonly RoutingServiceBusConfiguration _routingServiceBusConfiguration;
+    private readonly IMessageRouter _messageRouter;
     private readonly ILogger<DataIngestionOrchestrator> _logger;
+    
     private readonly DateTime _timeReference;
 
     public DataIngestionOrchestrator(
-        ICosmosDbClient<BaseDevice> itemCosmosClient,
+        IDataPointValidator dataPointValidator,
         ITableStorageClient<DataPointEntity> tableStorageClient,
         IServiceBusSenderFactory serviceBusSenderFactory,
         IngestionConfiguration ingestionConfiguration,
         RoutingServiceBusConfiguration routingServiceBusConfiguration,
+        IMessageRouter messageRouter,
         ILogger<DataIngestionOrchestrator> logger)
     {
-        _itemCosmosClient = itemCosmosClient;
+        _dataPointValidator = dataPointValidator;
         _tableStorageClient = tableStorageClient;
         _serviceBusSenderFactory = serviceBusSenderFactory;
         _ingestionConfiguration = ingestionConfiguration;
         _routingServiceBusConfiguration = routingServiceBusConfiguration;
+        _messageRouter = messageRouter;
         _logger = logger;
         _timeReference = DateTime.UtcNow;
     }
@@ -44,8 +47,18 @@ public class DataIngestionOrchestrator
     public async Task RunOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
     {
         var inputDataPoints = context.GetInput<IEnumerable<DataPoint>>().ToList();
+        var validationResults = await ValidateDataPointsAsync(context, inputDataPoints);
+        var validDataPointEntities = await EnrichDataPointsAsync(context, inputDataPoints, validationResults);
+        var storedDataPointsBatch = await context.CallActivityAsync<bool>(nameof(StoreEnrichedDataPoints), validDataPointEntities);
 
-        // Validate data points
+        if (storedDataPointsBatch)
+        {
+            await context.CallActivityAsync(nameof(RouteMessages), validDataPointEntities);
+        }
+    }
+
+    private async Task<List<bool>> ValidateDataPointsAsync(TaskOrchestrationContext context, List<DataPoint> inputDataPoints)
+    {
         var validationResults = await context.CallActivityAsync<List<bool>>(nameof(ValidateDataPoints), inputDataPoints);
         if (inputDataPoints.Count != validationResults.Count)
         {
@@ -54,7 +67,11 @@ public class DataIngestionOrchestrator
             throw new InvalidOperationException(errorMessage);
         }
 
-        // Enrich data points
+        return validationResults;
+    }
+
+    private async Task<IEnumerable<DataPointEntity>> EnrichDataPointsAsync(TaskOrchestrationContext context, List<DataPoint> inputDataPoints, List<bool> validationResults)
+    {
         var validDataPoints = new ConcurrentBag<DataPoint>();
 
         Parallel.For(0, inputDataPoints.Count, idx =>
@@ -70,11 +87,9 @@ public class DataIngestionOrchestrator
             }
         });
 
-        var validDataPointEntities = await context.CallActivityAsync<IEnumerable<DataPointEntity>>(nameof(EnrichDataPoints), validDataPoints);
-
-        // Store and route validated points
-        await context.CallActivityAsync(nameof(StoreEnrichedDataPoints), validDataPointEntities);
-        await context.CallActivityAsync(nameof(RouteMessages), validDataPointEntities);
+        var validDataPointEntities =
+            await context.CallActivityAsync<IEnumerable<DataPointEntity>>(nameof(EnrichDataPoints), validDataPoints);
+        return validDataPointEntities;
     }
 
     [Function(nameof(ValidateDataPoints))]
@@ -84,11 +99,11 @@ public class DataIngestionOrchestrator
 
         Parallel.ForEach(dataPoints, dataPoint =>
         {
-            var validationResult = ValidateDataPointRange(dataPoint);
+            var validationResult = _dataPointValidator.ValidateDataPointRange(dataPoint);
             validationResults.TryAdd(validationResult.Key, validationResult.Value);
         });
 
-        await CheckDevicesRegistrationAsync(validationResults);
+        await _dataPointValidator.CheckDevicesRegistrationAsync(validationResults);
 
         return validationResults.Values.ToList();
     }
@@ -120,9 +135,18 @@ public class DataIngestionOrchestrator
     }
 
     [Function(nameof(StoreEnrichedDataPoints))]
-    public async Task StoreEnrichedDataPoints([ActivityTrigger] IEnumerable<DataPointEntity> dataPointEntities)
+    public async Task<bool> StoreEnrichedDataPoints([ActivityTrigger] IEnumerable<DataPointEntity> dataPointEntities)
     {
-        await _tableStorageClient.UpsertEntitiesBatchedAsync(dataPointEntities);
+        try
+        {
+            await _tableStorageClient.AddEntitiesBatchedAsync(dataPointEntities);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Exception while adding batch to table storage: {TableStorageAddException} @ {TableStorageAddStackTrace}", ex.Message, ex.StackTrace);
+            return false;
+        }
     }
 
     [Function(nameof(RouteMessages))]
@@ -141,95 +165,9 @@ public class DataIngestionOrchestrator
             Heading = e.Heading
         });
         var messageType = ServiceBusMessageType.StatusReceived; // TODO: get this dynamically, if alert or traffic or trip
-        var queue = GetRoutingQueue(messageType);
+        var queue = _messageRouter.GetRoutingQueue(messageType);
         var sender = _serviceBusSenderFactory.GetServiceBusSenderClient(_routingServiceBusConfiguration.ConnectionString, queue);
 
         await sender.SendMessageAsync(message);
-    }
-
-    private KeyValuePair<DataPoint, bool> ValidateDataPointRange(DataPoint dataPoint)
-    {
-        if (dataPoint.Id < _ingestionConfiguration.MinId || dataPoint.Id > _ingestionConfiguration.MaxId)
-        {
-            _logger.LogError("Item is not registered, id: {UnregisteredItemId}", dataPoint.Id);
-            return new KeyValuePair<DataPoint, bool>(dataPoint, false);
-        }
-
-        if (dataPoint.Speed < _ingestionConfiguration.MinSpeed || dataPoint.Speed > _ingestionConfiguration.MaxSpeed)
-        {
-            _logger.LogError("Invalid speed indicating error data: {InvalidSpeed} m/s", dataPoint.Speed);
-            return new KeyValuePair<DataPoint, bool>(dataPoint, false);
-        }
-
-        return new KeyValuePair<DataPoint, bool>(dataPoint, true);
-    }
-
-    private async Task CheckDevicesRegistrationAsync(ConcurrentDictionary<DataPoint, bool> validationResults)
-    {
-        var validIds = validationResults
-            .Where(kvp => kvp.Value)
-            .Select(kvp => kvp.Key.Id)
-            .Distinct()
-            .ToList();
-        var registrationResults = await AreIdsRegisteredAsync(validIds);
-
-        Parallel.ForEach(validationResults.Where(kvp => kvp.Value), validationResult =>
-        {
-            var id = validationResult.Key.Id;
-            if (registrationResults.Keys.Contains(id))
-            {
-                validationResults[validationResult.Key] = registrationResults[id];
-            }
-        });
-    }
-
-    private async Task<Dictionary<int, bool>> AreIdsRegisteredAsync(List<int> ids)
-    {
-        var registrationResults = new Dictionary<int, bool>();
-        foreach (var id in ids)
-        {
-            registrationResults.Add(id, false);
-        }
-
-        try
-        {
-            var registeredDevices = (await _itemCosmosClient.GetDocumentsByQueryAsync(devices =>
-            {
-                var filteredDevices = devices.Where(d => ids.Contains(d.ExternalId));
-                return filteredDevices as IOrderedQueryable<BaseDevice>;
-            })).ToList();
-
-            foreach (var id in ids)
-            {
-                var isRegisteredDevice = registeredDevices.FirstOrDefault(rd => rd.ExternalId == id) != null;
-                if (!isRegisteredDevice)
-                {
-                    _logger.LogError("Item with id could not be found as registered item: {UnregisteredItemId}", id);
-                }
-                registrationResults[id] = isRegisteredDevice;
-            }
-
-            return registrationResults;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError("Encountered exception while validating devices: {ValidationExceptionMessage} @ {ValidationExceptionStackTrace}", ex.Message, ex.StackTrace);
-            return registrationResults;
-        }
-    }
-
-    private string GetRoutingQueue(ServiceBusMessageType messageType)
-    {
-        switch (messageType)
-        {
-            case ServiceBusMessageType.AlertReceived:
-                return _routingServiceBusConfiguration.AlertQueueName;
-            case ServiceBusMessageType.StatusReceived:
-                return _routingServiceBusConfiguration.StatusQueueName;
-            case ServiceBusMessageType.TripReceived:
-                return _routingServiceBusConfiguration.TripQueueName;
-            default:
-                throw new NotImplementedException($"Message of type {messageType} is not supported");
-        }
     }
 }
