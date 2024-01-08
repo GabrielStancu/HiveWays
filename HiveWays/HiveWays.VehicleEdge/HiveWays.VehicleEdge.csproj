@@ -19,7 +19,8 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\HiveWays.Core\HiveWays.Domain\HiveWays.Business.csproj" />
+    <ProjectReference Include="..\HiveWays.Core\HiveWays.Business\HiveWays.Business.csproj" />
+    <ProjectReference Include="..\HiveWays.Core\HiveWays.Domain\HiveWays.Domain.csproj" />
     <ProjectReference Include="..\HiveWays.Core\HiveWays.Infrastructure\HiveWays.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>

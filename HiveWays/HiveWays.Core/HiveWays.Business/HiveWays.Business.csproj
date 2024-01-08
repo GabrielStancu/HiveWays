@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\HiveWays.Domain\HiveWays.Domain.csproj" />
+    <ProjectReference Include="..\HiveWays.Domain\HiveWays.Domain.csproj" />
   </ItemGroup>
 
 </Project>

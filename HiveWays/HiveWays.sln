@@ -9,15 +9,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.TelemetryIngestion
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HiveWays.Core", "HiveWays.Core", "{4AE20149-1226-471B-8FB8-E8BAE0EF3B53}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Business", "HiveWays.Core\HiveWays.Domain\HiveWays.Business.csproj", "{FE8CA5AF-1F7A-4B8C-A68F-04EC7822EA05}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Business", "HiveWays.Core\HiveWays.Business\HiveWays.Business.csproj", "{FE8CA5AF-1F7A-4B8C-A68F-04EC7822EA05}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Infrastructure", "HiveWays.Core\HiveWays.Infrastructure\HiveWays.Infrastructure.csproj", "{C7A81D9F-E2D0-4C24-846A-17AEF10E9442}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Domain", "HiveWays.Domain\HiveWays.Domain.csproj", "{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Domain", "HiveWays.Core\HiveWays.Domain\HiveWays.Domain.csproj", "{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.RegisteredDevicesGenerator", "HiveWays.RegisteredDevicesGenerator\HiveWays.RegisteredDevicesGenerator.csproj", "{0C69395F-AEA2-49B0-8906-9933A36EAC5F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FleetIntegration", "FleetIntegration\FleetIntegration.csproj", "{1761EA78-E607-4470-A09E-7E8CB7735CC8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HiveWays.FleetIntegration", "HiveWays.FleetIntegration\HiveWays.FleetIntegration.csproj", "{1761EA78-E607-4470-A09E-7E8CB7735CC8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
