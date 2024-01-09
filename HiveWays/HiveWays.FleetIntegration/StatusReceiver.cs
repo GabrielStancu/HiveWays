@@ -16,7 +16,9 @@ public class StatusReceiver
     [Function(nameof(StatusReceiver))]
     public void Run([ServiceBusTrigger("%TrafficServiceBus:StatusQueue%", Connection = "TrafficServiceBus:ConnectionString")] ServiceBusReceivedMessage message)
     {
-        // This will process status messages, storing locally the last known values for each car, then storing all values in data lake
+        // This will process status messages
+        // Storing locally the last known values for each car (caching)
+        // Then storing all values in data lake (table storage or cosmos)
         _logger.LogInformation("Message ID: {id}", message.MessageId);
     }
 }

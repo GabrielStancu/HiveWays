@@ -16,7 +16,8 @@ public class AlertReceiver
     [Function(nameof(AlertReceiver))]
     public void Run([ServiceBusTrigger("%TrafficServiceBus:AlertQueue%", Connection = "TrafficServiceBus:ConnectionString")] ServiceBusReceivedMessage message)
     {
-        // This will process alert messages, storing directly in the data lake
+        // This will process alert messages
+        // Storing directly in the data lake (table storage or cosmos)
         _logger.LogInformation("Message ID: {id}", message.MessageId);
     }
 }
