@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using HiveWays.Business.RedisClient;
 using HiveWays.Business.TableStorageClient;
 using HiveWays.Domain.Entities;
 using HiveWays.Domain.Models;
-using HiveWays.Infrastructure.Factories;
 using HiveWays.TelemetryIngestion.Business;
 using HiveWays.TelemetryIngestion.Configuration;
 using Microsoft.Azure.Functions.Worker;
@@ -16,9 +16,8 @@ public class DataIngestionOrchestrator
 {
     private readonly IDataPointValidator _dataPointValidator;
     private readonly ITableStorageClient<DataPointEntity> _tableStorageClient;
-    private readonly IServiceBusSenderFactory _serviceBusSenderFactory;
+    private readonly IRedisClient<LastKnownValue> _redisClient;
     private readonly IngestionConfiguration _ingestionConfiguration;
-    private readonly RoutingServiceBusConfiguration _routingServiceBusConfiguration;
     private readonly ILogger<DataIngestionOrchestrator> _logger;
     
     private readonly DateTime _timeReference;
@@ -26,16 +25,14 @@ public class DataIngestionOrchestrator
     public DataIngestionOrchestrator(
         IDataPointValidator dataPointValidator,
         ITableStorageClient<DataPointEntity> tableStorageClient,
-        IServiceBusSenderFactory serviceBusSenderFactory,
+        IRedisClient<LastKnownValue> redisClient,
         IngestionConfiguration ingestionConfiguration,
-        RoutingServiceBusConfiguration routingServiceBusConfiguration,
         ILogger<DataIngestionOrchestrator> logger)
     {
         _dataPointValidator = dataPointValidator;
         _tableStorageClient = tableStorageClient;
-        _serviceBusSenderFactory = serviceBusSenderFactory;
+        _redisClient = redisClient;
         _ingestionConfiguration = ingestionConfiguration;
-        _routingServiceBusConfiguration = routingServiceBusConfiguration;
         _logger = logger;
         _timeReference = DateTime.UtcNow;
     }
@@ -45,18 +42,12 @@ public class DataIngestionOrchestrator
     {
         var inputDataPoints = context.GetInput<IEnumerable<DataPoint>>().ToList();
         var validationResults = await ValidateDataPointsAsync(context, inputDataPoints);
+        
         var validDataPointEntities = await EnrichDataPointsAsync(context, inputDataPoints, validationResults);
-        var storedDataPointsBatch = await context.CallActivityAsync<bool>(nameof(StoreEnrichedDataPoints), validDataPointEntities);
+        await context.CallActivityAsync(nameof(StoreHistoricalData), validDataPointEntities);
 
-        if (storedDataPointsBatch)
-        {
-            var routingData = new RoutingData
-            {
-                DataPointEntities = validDataPointEntities,
-                MessageType = ServiceBusMessageType.StatusReceived // TODO: get this dynamically, if alert or traffic or trip
-            };
-            await context.CallActivityAsync(nameof(RouteMessages), routingData);
-        }
+        var lastKnownValues = MapEntitiesToKnownValues(validDataPointEntities);
+        await context.CallActivityAsync(nameof(StoreLastKnownValues), lastKnownValues);
     }
 
     private async Task<List<bool>> ValidateDataPointsAsync(TaskOrchestrationContext context, List<DataPoint> inputDataPoints)
@@ -136,41 +127,59 @@ public class DataIngestionOrchestrator
         return entities;
     }
 
-    [Function(nameof(StoreEnrichedDataPoints))]
-    public async Task<bool> StoreEnrichedDataPoints([ActivityTrigger] IEnumerable<DataPointEntity> dataPointEntities)
+    [Function(nameof(StoreHistoricalData))]
+    public async Task StoreHistoricalData([ActivityTrigger] IEnumerable<DataPointEntity> dataPointEntities)
     {
         try
         {
             await _tableStorageClient.AddEntitiesBatchedAsync(dataPointEntities);
-            return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError("Exception while adding batch to table storage: {TableStorageAddException} @ {TableStorageAddStackTrace}", ex.Message, ex.StackTrace);
-            return false;
+            _logger.LogError(
+                "Exception while adding batch to table storage: {TableStorageAddException} @ {TableStorageAddStackTrace}",
+                ex.Message, ex.StackTrace);
         }
     }
 
-    [Function(nameof(RouteMessages))]
-    public async Task RouteMessages([ActivityTrigger] RoutingData routingData)
+    [Function(nameof(StoreLastKnownValues))]
+    public async Task StoreLastKnownValues([ActivityTrigger] IEnumerable<LastKnownValue> lastKnownValues)
     {
-        var message = routingData.DataPointEntities.Select(e => new TrafficMessage
+        try
         {
-            DeviceId = e.PartitionKey,
-            Timestamp = DateTime.Parse(e.RowKey),
-            SpeedMps = e.SpeedMps,
-            SpeedKmph = e.SpeedKmph,
-            AccelerationMps = e.AccelerationMps,
-            AccelerationKmph = e.AccelerationKmph,
+            var valuesDictionary = new Dictionary<string, List<LastKnownValue>>();
+
+            foreach (var lastKnownValue in lastKnownValues)
+            {
+                if (!valuesDictionary.ContainsKey(lastKnownValue.Id))
+                {
+                    valuesDictionary[lastKnownValue.Id] = new List<LastKnownValue>();
+                }
+                valuesDictionary[lastKnownValue.Id].Add(lastKnownValue);
+            }
+
+            await _redisClient.StoreElementsAsync(valuesDictionary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                "Exception while adding batch to cache: {CacheAddException} @ {CacheAddStackTrace}",
+                ex.Message, ex.StackTrace);
+        }
+        
+    }
+
+    private static IEnumerable<LastKnownValue> MapEntitiesToKnownValues(IEnumerable<DataPointEntity> validDataPointEntities)
+    {
+        return validDataPointEntities.Select(e => new LastKnownValue
+        {
+            Id = e.PartitionKey,
+            Timestamp = DateTime.TryParse(e.RowKey, out var timestamp) ? timestamp : DateTime.UtcNow,
             Latitude = e.Latitude,
             Longitude = e.Longitude,
-            Heading = e.Heading
+            Heading = e.Heading,
+            SpeedKmph = e.SpeedKmph,
+            AccelerationKmph = e.AccelerationKmph
         });
-        var queue = routingData.MessageType == ServiceBusMessageType.StatusReceived
-            ? _routingServiceBusConfiguration.StatusQueueName
-            : _routingServiceBusConfiguration.AlertQueueName;
-        var sender = _serviceBusSenderFactory.GetServiceBusSenderClient(_routingServiceBusConfiguration.ConnectionString, queue);
-
-        await sender.SendMessageAsync(message);
     }
 }

@@ -1,10 +1,11 @@
 using HiveWays.Business.CosmosDbClient;
 using HiveWays.Business.Extensions;
+using HiveWays.Business.RedisClient;
 using HiveWays.Business.TableStorageClient;
 using HiveWays.Domain.Documents;
 using HiveWays.Domain.Entities;
+using HiveWays.Domain.Models;
 using HiveWays.Infrastructure.Clients;
-using HiveWays.Infrastructure.Factories;
 using HiveWays.TelemetryIngestion.Business;
 using HiveWays.TelemetryIngestion.Configuration;
 using Microsoft.Azure.Functions.Worker;
@@ -20,12 +21,12 @@ var host = new HostBuilder()
 
         services.AddSingleton<ICosmosDbClient<BaseDevice>, CosmosDbClient<BaseDevice>>();
         services.AddSingleton<ITableStorageClient<DataPointEntity>, TableStorageClient<DataPointEntity>>();
-        services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
+        services.AddSingleton<IRedisClient<LastKnownValue>, RedisClient<LastKnownValue>>();
         services.AddScoped<IDataPointValidator, DataPointValidator>();
         services.AddConfiguration<TableStorageConfiguration>("StorageAccount");
         services.AddConfiguration<IngestionConfiguration>("IngestionValidation");
         services.AddConfiguration<CosmosDbConfiguration>("RegisteredDevices");
-        services.AddConfiguration<RoutingServiceBusConfiguration>("RoutingServiceBus");
+        services.AddConfiguration<RedisConfiguration>("Redis");
     })
     .Build();
 

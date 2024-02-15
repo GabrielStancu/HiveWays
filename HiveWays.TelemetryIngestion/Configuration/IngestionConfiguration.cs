@@ -8,5 +8,4 @@ public class IngestionConfiguration
     public int MaxSpeed { get; set; }
     public decimal ReferenceLatitude { get; set; }
     public decimal ReferenceLongitude { get; set; }
-    public int BatchSize { get; set; }
 }
