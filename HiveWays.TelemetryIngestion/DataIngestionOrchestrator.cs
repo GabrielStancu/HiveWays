@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Text.Json;
 using HiveWays.Business.RedisClient;
 using HiveWays.Business.TableStorageClient;
 using HiveWays.Domain.Entities;
@@ -41,18 +40,18 @@ public class DataIngestionOrchestrator
     public async Task RunOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
     {
         var inputDataPoints = context.GetInput<IEnumerable<DataPoint>>().ToList();
-        var validationResults = await ValidateDataPointsAsync(context, inputDataPoints);
-        
-        var validDataPointEntities = await EnrichDataPointsAsync(context, inputDataPoints, validationResults);
-        await context.CallActivityAsync(nameof(StoreHistoricalData), validDataPointEntities);
+        var validDataPoints = await ValidateDataPointsAsync(context, inputDataPoints);
 
-        var lastKnownValues = MapEntitiesToKnownValues(validDataPointEntities);
+        var lastKnownValues = MapDataPointsToKnownValues(validDataPoints);
         await context.CallActivityAsync(nameof(StoreLastKnownValues), lastKnownValues);
+
+        var validDataPointEntities = await context.CallActivityAsync<IEnumerable<DataPointEntity>>(nameof(EnrichDataPoints), validDataPoints);
+        await context.CallActivityAsync(nameof(StoreHistoricalData), validDataPointEntities);
     }
 
-    private async Task<List<bool>> ValidateDataPointsAsync(TaskOrchestrationContext context, List<DataPoint> inputDataPoints)
+    private async Task<List<DataPoint>> ValidateDataPointsAsync(TaskOrchestrationContext context, List<DataPoint> inputDataPoints)
     {
-        var validationResults = await context.CallActivityAsync<List<bool>>(nameof(ValidateDataPoints), inputDataPoints);
+        var validationResults = await context.CallActivityAsync<Dictionary<DataPoint, bool>>(nameof(ValidateDataPoints), inputDataPoints);
         if (inputDataPoints.Count != validationResults.Count)
         {
             string errorMessage = "Input length different from validation results. Aborting further processing";
@@ -60,33 +59,16 @@ public class DataIngestionOrchestrator
             throw new InvalidOperationException(errorMessage);
         }
 
-        return validationResults;
-    }
+        var validDataPoints = validationResults
+            .Where(vr => vr.Value)
+            .Select(kvp => kvp.Key)
+            .ToList();
 
-    private async Task<IEnumerable<DataPointEntity>> EnrichDataPointsAsync(TaskOrchestrationContext context, List<DataPoint> inputDataPoints, List<bool> validationResults)
-    {
-        var validDataPoints = new ConcurrentBag<DataPoint>();
-
-        Parallel.For(0, inputDataPoints.Count, idx =>
-        {
-            if (validationResults[idx])
-            {
-                validDataPoints.Add(inputDataPoints[idx]);
-            }
-            else
-            {
-                _logger.LogError("Validation for data point {FailedValidationDataPoint} failed",
-                    JsonSerializer.Serialize(inputDataPoints[idx]));
-            }
-        });
-
-        var validDataPointEntities =
-            await context.CallActivityAsync<IEnumerable<DataPointEntity>>(nameof(EnrichDataPoints), validDataPoints);
-        return validDataPointEntities;
+        return validDataPoints;
     }
 
     [Function(nameof(ValidateDataPoints))]
-    public async Task<List<bool>> ValidateDataPoints([ActivityTrigger] IEnumerable<DataPoint> dataPoints)
+    public async Task<Dictionary<DataPoint, bool>> ValidateDataPoints([ActivityTrigger] IEnumerable<DataPoint> dataPoints)
     {
         var validationResults = new ConcurrentDictionary<DataPoint, bool>();
 
@@ -98,7 +80,7 @@ public class DataIngestionOrchestrator
 
         await _dataPointValidator.CheckDevicesRegistrationAsync(validationResults);
 
-        return validationResults.Values.ToList();
+        return validationResults.ToDictionary();
     }
 
     [Function(nameof(EnrichDataPoints))]
@@ -169,17 +151,17 @@ public class DataIngestionOrchestrator
         
     }
 
-    private static IEnumerable<LastKnownValue> MapEntitiesToKnownValues(IEnumerable<DataPointEntity> validDataPointEntities)
+    private IEnumerable<LastKnownValue> MapDataPointsToKnownValues(IEnumerable<DataPoint> dataPoints)
     {
-        return validDataPointEntities.Select(e => new LastKnownValue
+        return dataPoints.Select(dp => new LastKnownValue
         {
-            Id = e.PartitionKey,
-            Timestamp = DateTime.TryParse(e.RowKey, out var timestamp) ? timestamp : DateTime.UtcNow,
-            Latitude = e.Latitude,
-            Longitude = e.Longitude,
-            Heading = e.Heading,
-            SpeedKmph = e.SpeedKmph,
-            AccelerationKmph = e.AccelerationKmph
+            Id = dp.Id.ToString(),
+            Timestamp = _timeReference.AddSeconds(dp.TimeOffsetSeconds),
+            Longitude = _ingestionConfiguration.ReferenceLongitude + dp.X,
+            Latitude = _ingestionConfiguration.ReferenceLatitude + dp.Y,
+            Heading = dp.Heading,
+            SpeedKmph = dp.Speed,
+            AccelerationKmph = dp.Acceleration
         });
     }
 }
