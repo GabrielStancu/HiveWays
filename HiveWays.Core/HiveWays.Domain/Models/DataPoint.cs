@@ -2,7 +2,7 @@
 
 namespace HiveWays.Domain.Models;
 
-public class DataPoint
+public class DataPoint : IIdentifiable
 {
     [Name("#time")]
     public int TimeOffsetSeconds { get; set; }

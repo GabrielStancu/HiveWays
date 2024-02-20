@@ -2,6 +2,6 @@
 
 public interface IRedisClient<T>
 {
-    Task StoreElementsAsync(IDictionary<string, List<T>> elementLists);
+    Task StoreElementsAsync(IEnumerable<T> elements);
     Task<IEnumerable<T>> GetListElementsAsync(string key);
 }

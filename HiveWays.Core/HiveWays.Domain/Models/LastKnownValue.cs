@@ -1,8 +1,8 @@
 ﻿namespace HiveWays.Domain.Models;
 
-public class LastKnownValue
+public class LastKnownValue : IIdentifiable
 {
-    public string Id { get; set; }
+    public int Id { get; set; }
     public DateTime Timestamp { get; set; }
     public decimal Longitude { get; set; }
     public decimal Latitude { get; set; }

@@ -1,10 +1,11 @@
 ﻿using System.Text.Json;
 using HiveWays.Business.RedisClient;
+using HiveWays.Domain.Models;
 using StackExchange.Redis;
 
 namespace HiveWays.Infrastructure.Clients;
 
-public class RedisClient<T> : IRedisClient<T>
+public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
 {
     private readonly RedisConfiguration _redisConfiguration;
     private ConnectionMultiplexer _redisConnection;
@@ -14,20 +15,27 @@ public class RedisClient<T> : IRedisClient<T>
         _redisConfiguration = redisConfiguration;
     }
 
-    public async Task StoreElementsAsync(IDictionary<string, List<T>> elementLists)
+    public async Task StoreElementsAsync(IEnumerable<T> elements)
     {
         InitRedisClient();
         var database = _redisConnection.GetDatabase();
+        var batch = database.CreateBatch();
+        var batchTasks = new List<Task>();
 
-        foreach (var elementList in elementLists)
+        foreach (var element in elements)
         {
-            database.ListTrim(elementList.Key, 0, -2);
-
-            foreach (var element in elementList.Value)
+            var key = new RedisKey(element.Id.ToString());
+            var value = JsonSerializer.Serialize(element);
+            var addTask = batch.SortedSetAddAsync(key, value, element.Id).ContinueWith(_ =>
             {
-                await database.ListRightPushAsync(elementList.Key, JsonSerializer.Serialize(element));
-            }
+                batch.KeyExpireAsync(key, TimeSpan.FromSeconds(5));
+            });
+
+            batchTasks.Add(addTask);
         }
+
+        await Task.WhenAll(batchTasks);
+        batch.Execute();
     }
 
     public async Task<IEnumerable<T>> GetListElementsAsync(string key)

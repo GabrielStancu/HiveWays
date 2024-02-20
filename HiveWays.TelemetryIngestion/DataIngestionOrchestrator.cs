@@ -129,18 +129,7 @@ public class DataIngestionOrchestrator
     {
         try
         {
-            var valuesDictionary = new Dictionary<string, List<LastKnownValue>>();
-
-            foreach (var lastKnownValue in lastKnownValues)
-            {
-                if (!valuesDictionary.ContainsKey(lastKnownValue.Id))
-                {
-                    valuesDictionary[lastKnownValue.Id] = new List<LastKnownValue>();
-                }
-                valuesDictionary[lastKnownValue.Id].Add(lastKnownValue);
-            }
-
-            await _redisClient.StoreElementsAsync(valuesDictionary);
+            await _redisClient.StoreElementsAsync(lastKnownValues);
         }
         catch (Exception ex)
         {
@@ -155,7 +144,7 @@ public class DataIngestionOrchestrator
     {
         return dataPoints.Select(dp => new LastKnownValue
         {
-            Id = dp.Id.ToString(),
+            Id = dp.Id,
             Timestamp = _timeReference.AddSeconds(dp.TimeOffsetSeconds),
             Longitude = _ingestionConfiguration.ReferenceLongitude + dp.X,
             Latitude = _ingestionConfiguration.ReferenceLatitude + dp.Y,

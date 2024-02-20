@@ -17,7 +17,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Domain", "HiveWays
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.RegisteredDevicesGenerator", "HiveWays.RegisteredDevicesGenerator\HiveWays.RegisteredDevicesGenerator.csproj", "{0C69395F-AEA2-49B0-8906-9933A36EAC5F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HiveWays.FleetIntegration", "HiveWays.FleetIntegration\HiveWays.FleetIntegration.csproj", "{1761EA78-E607-4470-A09E-7E8CB7735CC8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.FleetIntegration", "HiveWays.FleetIntegration\HiveWays.FleetIntegration.csproj", "{1761EA78-E607-4470-A09E-7E8CB7735CC8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
