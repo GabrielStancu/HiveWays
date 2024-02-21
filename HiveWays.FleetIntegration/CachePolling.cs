@@ -18,13 +18,13 @@ namespace HiveWays.FleetIntegration
         }
 
         [Function("CachePolling")]
-        public void Run([TimerTrigger("0 */1 * * * *")] TimerInfo myTimer)
+        public async Task Run([TimerTrigger("* */1 * * * *")] TimerInfo myTimer)
         {
             _logger.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
 
-            //var lastKnownValues = await _redisClient.GetListElementsAsync()
+            var lastKnownValues = await _redisClient.GetElementsAsync();
 
-            _logger.LogInformation($"Next timer schedule at: {myTimer.ScheduleStatus?.Next}");
+            _logger.LogInformation($"Fetched {lastKnownValues?.Count() ?? 0} items from last known values cache");
         }
     }
 }

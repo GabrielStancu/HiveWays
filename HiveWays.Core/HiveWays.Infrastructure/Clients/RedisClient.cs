@@ -24,7 +24,7 @@ public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
 
         foreach (var element in elements)
         {
-            var key = new RedisKey(element.Id.ToString());
+            var key = new RedisKey("cars-last-known-values");
             var value = JsonSerializer.Serialize(element);
             var addTask = batch.SortedSetAddAsync(key, value, element.Id).ContinueWith(_ =>
             {
@@ -38,14 +38,13 @@ public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
         batch.Execute();
     }
 
-    public async Task<IEnumerable<T>> GetListElementsAsync(string key)
+    public async Task<IEnumerable<T>> GetElementsAsync()
     {
+        InitRedisClient();
         var database = _redisConnection.GetDatabase();
-        var storedValues = await database.ListRangeAsync(key);
-        var elements = storedValues
-            .Select(e => JsonSerializer.Deserialize<T>(e));
+        var elements = await database.SortedSetRangeByScoreAsync("cars-last-known-values");
 
-        return elements;
+        return elements as IEnumerable<T>;
     }
 
     private void InitRedisClient()

@@ -26,7 +26,7 @@ var host = new HostBuilder()
         services.AddConfiguration<TableStorageConfiguration>("StorageAccount");
         services.AddConfiguration<IngestionConfiguration>("IngestionValidation");
         services.AddConfiguration<CosmosDbConfiguration>("RegisteredDevices");
-        services.AddConfiguration<RedisConfiguration>("Redis");
+        services.AddConfiguration<RedisConfiguration>("LastKnownValuesCache");
     })
     .Build();
 
