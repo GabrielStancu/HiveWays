@@ -23,8 +23,12 @@ namespace HiveWays.FleetIntegration
             _logger.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
 
             var lastKnownValues = await _redisClient.GetElementsAsync();
+            var count = lastKnownValues?.Count() ?? 0;
 
-            _logger.LogInformation($"Fetched {lastKnownValues?.Count() ?? 0} items from last known values cache");
+            if (count > 0)
+            {
+                _logger.LogInformation($"Fetched {count} items from last known values cache");
+            }
         }
     }
 }

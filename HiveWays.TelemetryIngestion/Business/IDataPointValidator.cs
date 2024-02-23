@@ -1,10 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using HiveWays.Domain.Models;
+using HiveWays.TelemetryIngestion.Models;
 
 namespace HiveWays.TelemetryIngestion.Business;
 
 public interface IDataPointValidator
 {
-    KeyValuePair<DataPoint, bool> ValidateDataPointRange(DataPoint dataPoint);
-    Task CheckDevicesRegistrationAsync(ConcurrentDictionary<DataPoint, bool> validationResults);
+    ValidatedDataPoint ValidateDataPointRange(DataPoint dataPoint);
+    Task CheckDevicesRegistrationAsync(ConcurrentBag<ValidatedDataPoint> validationResults);
 }

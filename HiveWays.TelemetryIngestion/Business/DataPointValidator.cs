@@ -3,6 +3,7 @@ using HiveWays.TelemetryIngestion.Configuration;
 using System.Collections.Concurrent;
 using HiveWays.Business.CosmosDbClient;
 using HiveWays.Domain.Documents;
+using HiveWays.TelemetryIngestion.Models;
 using Microsoft.Extensions.Logging;
 
 namespace HiveWays.TelemetryIngestion.Business;
@@ -22,38 +23,38 @@ public class DataPointValidator : IDataPointValidator
         _logger = logger;
     }
 
-    public KeyValuePair<DataPoint, bool> ValidateDataPointRange(DataPoint dataPoint)
+    public ValidatedDataPoint ValidateDataPointRange(DataPoint dataPoint)
     {
         if (dataPoint.Id < _ingestionConfiguration.MinId || dataPoint.Id > _ingestionConfiguration.MaxId)
         {
             _logger.LogError("Item is not registered, id: {UnregisteredItemId}", dataPoint.Id);
-            return new KeyValuePair<DataPoint, bool>(dataPoint, false);
+            return new ValidatedDataPoint(dataPoint);
         }
 
         if (dataPoint.Speed < _ingestionConfiguration.MinSpeed || dataPoint.Speed > _ingestionConfiguration.MaxSpeed)
         {
             _logger.LogError("Invalid speed indicating error data: {InvalidSpeed} m/s", dataPoint.Speed);
-            return new KeyValuePair<DataPoint, bool>(dataPoint, false);
+            return new ValidatedDataPoint(dataPoint);
         }
 
-        return new KeyValuePair<DataPoint, bool>(dataPoint, true);
+        return new ValidatedDataPoint(dataPoint, true);
     }
 
-    public async Task CheckDevicesRegistrationAsync(ConcurrentDictionary<DataPoint, bool> validationResults)
+    public async Task CheckDevicesRegistrationAsync(ConcurrentBag<ValidatedDataPoint> validationResults)
     {
         var validIds = validationResults
-            .Where(kvp => kvp.Value)
-            .Select(kvp => kvp.Key.Id)
+            .Where(dp => dp.IsValid)
+            .Select(dp => dp.DataPoint.Id)
             .Distinct()
             .ToList();
         var registrationResults = await AreIdsRegisteredAsync(validIds);
 
-        Parallel.ForEach(validationResults.Where(kvp => kvp.Value), validationResult =>
+        Parallel.ForEach(validationResults.Where(dp => dp.IsValid), validationResult =>
         {
-            var id = validationResult.Key.Id;
+            var id = validationResult.DataPoint.Id;
             if (registrationResults.Keys.Contains(id))
             {
-                validationResults[validationResult.Key] = registrationResults[id];
+                validationResult.IsValid = registrationResults[id];
             }
         });
     }

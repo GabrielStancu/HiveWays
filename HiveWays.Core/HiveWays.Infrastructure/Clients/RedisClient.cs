@@ -8,7 +8,7 @@ namespace HiveWays.Infrastructure.Clients;
 public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
 {
     private readonly RedisConfiguration _redisConfiguration;
-    private ConnectionMultiplexer _redisConnection;
+    private IDatabase _database;
 
     public RedisClient(RedisConfiguration redisConfiguration)
     {
@@ -17,41 +17,36 @@ public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
 
     public async Task StoreElementsAsync(IEnumerable<T> elements)
     {
-        InitRedisClient();
-        var database = _redisConnection.GetDatabase();
-        var batch = database.CreateBatch();
-        var batchTasks = new List<Task>();
+        InitDatabase();
+        
+        var batch = _database.CreateBatch();
+        var key = new RedisKey("cars-last-known-values");
 
         foreach (var element in elements)
         {
-            var key = new RedisKey("cars-last-known-values");
             var value = JsonSerializer.Serialize(element);
-            var addTask = batch.SortedSetAddAsync(key, value, element.Id).ContinueWith(_ =>
-            {
-                batch.KeyExpireAsync(key, TimeSpan.FromSeconds(5));
-            });
-
-            batchTasks.Add(addTask);
+            await batch.SortedSetAddAsync(key, value, element.Id);
         }
 
-        await Task.WhenAll(batchTasks);
+        await batch.KeyExpireAsync(key, TimeSpan.FromSeconds(_redisConfiguration.ExpirationTime));
         batch.Execute();
     }
 
     public async Task<IEnumerable<T>> GetElementsAsync()
     {
-        InitRedisClient();
-        var database = _redisConnection.GetDatabase();
-        var elements = await database.SortedSetRangeByScoreAsync("cars-last-known-values");
+        InitDatabase();
+
+        var elements = await _database.SortedSetRangeByScoreAsync("cars-last-known-values");
 
         return elements as IEnumerable<T>;
     }
 
-    private void InitRedisClient()
+    private void InitDatabase()
     {
-        if (_redisConnection != null)
+        if (_database != null)
             return;
 
-        _redisConnection = ConnectionMultiplexer.Connect(_redisConfiguration.ConnectionString);
+        var redisConnection = ConnectionMultiplexer.Connect(_redisConfiguration.ConnectionString);
+        _database = redisConnection.GetDatabase();
     }
 }

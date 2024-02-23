@@ -5,6 +5,7 @@ using HiveWays.Domain.Entities;
 using HiveWays.Domain.Models;
 using HiveWays.TelemetryIngestion.Business;
 using HiveWays.TelemetryIngestion.Configuration;
+using HiveWays.TelemetryIngestion.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
 using Microsoft.Extensions.Logging;
@@ -51,36 +52,29 @@ public class DataIngestionOrchestrator
 
     private async Task<List<DataPoint>> ValidateDataPointsAsync(TaskOrchestrationContext context, List<DataPoint> inputDataPoints)
     {
-        var validationResults = await context.CallActivityAsync<Dictionary<DataPoint, bool>>(nameof(ValidateDataPoints), inputDataPoints);
-        if (inputDataPoints.Count != validationResults.Count)
-        {
-            string errorMessage = "Input length different from validation results. Aborting further processing";
-            _logger.LogError(errorMessage);
-            throw new InvalidOperationException(errorMessage);
-        }
-
+        var validationResults = await context.CallActivityAsync<IEnumerable<ValidatedDataPoint>>(nameof(ValidateDataPoints), inputDataPoints);
         var validDataPoints = validationResults
-            .Where(vr => vr.Value)
-            .Select(kvp => kvp.Key)
+            .Where(vr => vr.IsValid)
+            .Select(vr => vr.DataPoint)
             .ToList();
 
         return validDataPoints;
     }
 
     [Function(nameof(ValidateDataPoints))]
-    public async Task<Dictionary<DataPoint, bool>> ValidateDataPoints([ActivityTrigger] IEnumerable<DataPoint> dataPoints)
+    public async Task<List<ValidatedDataPoint>> ValidateDataPoints([ActivityTrigger] IEnumerable<DataPoint> dataPoints)
     {
-        var validationResults = new ConcurrentDictionary<DataPoint, bool>();
+        var validationResults = new ConcurrentBag<ValidatedDataPoint>();
 
         Parallel.ForEach(dataPoints, dataPoint =>
         {
             var validationResult = _dataPointValidator.ValidateDataPointRange(dataPoint);
-            validationResults.TryAdd(validationResult.Key, validationResult.Value);
+            validationResults.Add(validationResult);
         });
 
         await _dataPointValidator.CheckDevicesRegistrationAsync(validationResults);
 
-        return validationResults.ToDictionary();
+        return validationResults.ToList();
     }
 
     [Function(nameof(EnrichDataPoints))]
