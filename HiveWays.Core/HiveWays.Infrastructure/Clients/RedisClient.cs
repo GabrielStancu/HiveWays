@@ -18,18 +18,15 @@ public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
     public async Task StoreElementsAsync(IEnumerable<T> elements)
     {
         InitDatabase();
-        
-        var batch = _database.CreateBatch();
+
         var key = new RedisKey("cars-last-known-values");
+        await _database.KeyExpireAsync(key, TimeSpan.FromSeconds(_redisConfiguration.ExpirationTime));
 
         foreach (var element in elements)
         {
             var value = JsonSerializer.Serialize(element);
-            await batch.SortedSetAddAsync(key, value, element.Id);
+            await _database.SortedSetAddAsync(key, value, element.Id);
         }
-
-        await batch.KeyExpireAsync(key, TimeSpan.FromSeconds(_redisConfiguration.ExpirationTime));
-        batch.Execute();
     }
 
     public async Task<IEnumerable<T>> GetElementsAsync()
