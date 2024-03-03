@@ -1,16 +1,19 @@
 ﻿using Azure.Data.Tables;
 using HiveWays.Business.TableStorageClient;
+using Microsoft.Extensions.Logging;
 
 namespace HiveWays.Infrastructure.Clients;
 
 public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITableEntity
 {
     private readonly TableStorageConfiguration _configuration;
+    private readonly ILogger<TableStorageClient<T>> _logger;
     private TableClient _tableClient;
 
-    public TableStorageClient(TableStorageConfiguration configuration)
+    public TableStorageClient(TableStorageConfiguration configuration, ILogger<TableStorageClient<T>> logger)
     {
         _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task UpsertEntityAsync(T entity)
@@ -31,12 +34,19 @@ public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITa
 
         var batch = new List<TableTransactionAction>();
 
-        foreach (var entity in entities)
+        foreach (var entity in entities.Where(e => e != null))
         {
             batch.Add(new TableTransactionAction(TableTransactionActionType.Add, entity));
         }
 
-        await _tableClient.SubmitTransactionAsync(batch);
+        try
+        {
+            await _tableClient.SubmitTransactionAsync(batch);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error while saving to table storage. Exception: {TableStorageException} @ {TableStorageExceptionStackTrace}", ex.Message, ex.StackTrace);
+        }
     }
 
 

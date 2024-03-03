@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Concurrent;
+using System.Text.Json;
 using HiveWays.Business.RedisClient;
 using HiveWays.Domain.Models;
 using StackExchange.Redis;
@@ -8,6 +9,7 @@ namespace HiveWays.Infrastructure.Clients;
 public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
 {
     private readonly RedisConfiguration _redisConfiguration;
+    private ConnectionMultiplexer _connectionMultiplexer;
     private IDatabase _database;
 
     public RedisClient(RedisConfiguration redisConfiguration)
@@ -19,13 +21,13 @@ public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
     {
         InitDatabase();
 
-        var key = new RedisKey("cars-last-known-values");
-        await _database.KeyExpireAsync(key, TimeSpan.FromSeconds(_redisConfiguration.ExpirationTime));
-
         foreach (var element in elements)
         {
+            var redisKey = new RedisKey(element.Id.ToString());
             var value = JsonSerializer.Serialize(element);
-            await _database.SortedSetAddAsync(key, value, element.Id);
+
+            await _database.ListLeftPushAsync(redisKey, value);
+            await _database.ListTrimAsync(redisKey, 0, _redisConfiguration.ListLength - 1);
         }
     }
 
@@ -33,9 +35,21 @@ public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
     {
         InitDatabase();
 
-        var elements = await _database.SortedSetRangeByScoreAsync("cars-last-known-values");
+        var elements = new ConcurrentBag<T>();
+        var keys = _connectionMultiplexer
+            .GetServer(_redisConfiguration.ConnectionString)
+            .Keys();
+        var tasks = keys.Select(async key =>
+        {
+            var redisList = await _database.ListRangeAsync(key);
+            redisList.Select(e => JsonSerializer.Deserialize<T>(e))
+                .ToList()
+                .ForEach(e => elements.Add(e));
+        });
 
-        return elements as IEnumerable<T>;
+        await Task.WhenAll(tasks);
+
+        return elements;
     }
 
     private void InitDatabase()
@@ -43,7 +57,7 @@ public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
         if (_database != null)
             return;
 
-        var redisConnection = ConnectionMultiplexer.Connect(_redisConfiguration.ConnectionString);
-        _database = redisConnection.GetDatabase();
+        _connectionMultiplexer = ConnectionMultiplexer.Connect(_redisConfiguration.ConnectionString);
+        _database = _connectionMultiplexer.GetDatabase();
     }
 }
