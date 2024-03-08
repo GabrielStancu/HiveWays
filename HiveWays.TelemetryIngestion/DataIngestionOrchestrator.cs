@@ -16,7 +16,7 @@ public class DataIngestionOrchestrator
 {
     private readonly IDataPointValidator _dataPointValidator;
     private readonly ITableStorageClient<DataPointEntity> _tableStorageClient;
-    private readonly IRedisClient<LastKnownValue> _redisClient;
+    private readonly IRedisClient<VehicleStats> _redisClient;
     private readonly IngestionConfiguration _ingestionConfiguration;
     private readonly ILogger<DataIngestionOrchestrator> _logger;
     
@@ -25,7 +25,7 @@ public class DataIngestionOrchestrator
     public DataIngestionOrchestrator(
         IDataPointValidator dataPointValidator,
         ITableStorageClient<DataPointEntity> tableStorageClient,
-        IRedisClient<LastKnownValue> redisClient,
+        IRedisClient<VehicleStats> redisClient,
         IngestionConfiguration ingestionConfiguration,
         ILogger<DataIngestionOrchestrator> logger)
     {
@@ -43,8 +43,8 @@ public class DataIngestionOrchestrator
         var inputDataPoints = context.GetInput<IEnumerable<DataPoint>>().ToList();
         var validDataPoints = await ValidateDataPointsAsync(context, inputDataPoints);
 
-        var lastKnownValues = MapDataPointsToKnownValues(validDataPoints);
-        await context.CallActivityAsync(nameof(StoreLastKnownValues), lastKnownValues);
+        var vehicleStats = MapDataPointsToKnownValues(validDataPoints);
+        await context.CallActivityAsync(nameof(StoreVehicleStats), vehicleStats);
 
         var validDataPointEntities = await context.CallActivityAsync<IEnumerable<DataPointEntity>>(nameof(EnrichDataPoints), validDataPoints);
         await context.CallActivityAsync(nameof(StoreHistoricalData), validDataPointEntities);
@@ -118,12 +118,12 @@ public class DataIngestionOrchestrator
         }
     }
 
-    [Function(nameof(StoreLastKnownValues))]
-    public async Task StoreLastKnownValues([ActivityTrigger] IEnumerable<LastKnownValue> lastKnownValues)
+    [Function(nameof(StoreVehicleStats))]
+    public async Task StoreVehicleStats([ActivityTrigger] IEnumerable<VehicleStats> vehicleStats)
     {
         try
         {
-            await _redisClient.StoreElementsAsync(lastKnownValues);
+            await _redisClient.StoreElementsAsync(vehicleStats);
         }
         catch (Exception ex)
         {
@@ -131,12 +131,11 @@ public class DataIngestionOrchestrator
                 "Exception while adding batch to cache: {CacheAddException} @ {CacheAddStackTrace}",
                 ex.Message, ex.StackTrace);
         }
-        
     }
 
-    private IEnumerable<LastKnownValue> MapDataPointsToKnownValues(IEnumerable<DataPoint> dataPoints)
+    private IEnumerable<VehicleStats> MapDataPointsToKnownValues(IEnumerable<DataPoint> dataPoints)
     {
-        return dataPoints.Select(dp => new LastKnownValue
+        return dataPoints.Select(dp => new VehicleStats
         {
             Id = dp.Id,
             Timestamp = _timeReference.AddSeconds(dp.TimeOffsetSeconds),

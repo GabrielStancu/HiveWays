@@ -21,12 +21,12 @@ var host = new HostBuilder()
 
         services.AddSingleton<ICosmosDbClient<BaseDevice>, CosmosDbClient<BaseDevice>>();
         services.AddSingleton<ITableStorageClient<DataPointEntity>, TableStorageClient<DataPointEntity>>();
-        services.AddSingleton<IRedisClient<LastKnownValue>, RedisClient<LastKnownValue>>();
+        services.AddSingleton<IRedisClient<VehicleStats>, RedisClient<VehicleStats>>();
         services.AddScoped<IDataPointValidator, DataPointValidator>();
         services.AddConfiguration<TableStorageConfiguration>("StorageAccount");
         services.AddConfiguration<IngestionConfiguration>("IngestionValidation");
         services.AddConfiguration<CosmosDbConfiguration>("RegisteredDevices");
-        services.AddConfiguration<RedisConfiguration>("LastKnownValuesCache");
+        services.AddConfiguration<RedisConfiguration>("VehicleStats");
     })
     .Build();
 

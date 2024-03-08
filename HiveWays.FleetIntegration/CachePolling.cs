@@ -1,5 +1,7 @@
+using System.Text.Json;
 using HiveWays.Business.RedisClient;
 using HiveWays.Domain.Models;
+using HiveWays.FleetIntegration.Business;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -7,26 +9,29 @@ namespace HiveWays.FleetIntegration
 {
     public class CachePolling
     {
-        private readonly IRedisClient<LastKnownValue> _redisClient;
-        private readonly ILogger _logger;
+        private readonly IRedisClient<VehicleStats> _redisClient;
+        private readonly IVehicleClustering _vehicleClustering;
+        private readonly ILogger<CachePolling> _logger;
+        private readonly ClusterConfiguration _clusterConfiguration;
 
-        public CachePolling(IRedisClient<LastKnownValue> redisClient,
-            ILoggerFactory loggerFactory)
+        public CachePolling(IRedisClient<VehicleStats> redisClient,
+            IVehicleClustering vehicleClustering,
+            ILogger<CachePolling> logger,
+            ClusterConfiguration clusterConfiguration)
         {
             _redisClient = redisClient;
-            _logger = loggerFactory.CreateLogger<CachePolling>();
+            _vehicleClustering = vehicleClustering;
+            _logger = logger;
+            _clusterConfiguration = clusterConfiguration;
         }
 
         [Function("CachePolling")]
         public async Task Run([TimerTrigger("* */1 * * * *")] TimerInfo myTimer)
         {
-            var lastKnownValues = await _redisClient.GetElementsAsync();
-            var count = lastKnownValues?.Count() ?? 0;
+            var vehicleStats = await _redisClient.GetElementsAsync();
+            var clusters = _vehicleClustering.KMeans(vehicleStats.ToList(), _clusterConfiguration.ClustersCount);
 
-            if (count > 0)
-            {
-                _logger.LogWarning($"Fetched {count} items from last known values cache");
-            }
+            _logger.LogInformation("Found clusters: {VehicleClusters}", JsonSerializer.Serialize(clusters));
         }
     }
 }

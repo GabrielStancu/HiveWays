@@ -1,6 +1,6 @@
 ﻿namespace HiveWays.Domain.Models;
 
-public class LastKnownValue : IIdentifiable
+public class VehicleStats : IIdentifiable
 {
     public int Id { get; set; }
     public DateTime Timestamp { get; set; }

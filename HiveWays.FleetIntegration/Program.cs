@@ -1,5 +1,6 @@
 using HiveWays.Business.Extensions;
 using HiveWays.Business.RedisClient;
+using HiveWays.FleetIntegration.Business;
 using HiveWays.Infrastructure.Clients;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +13,9 @@ var host = new HostBuilder()
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
         services.AddSingleton(typeof(IRedisClient<>), typeof(RedisClient<>));
-        services.AddConfiguration<RedisConfiguration>("LastKnownValuesCache");
+        services.AddScoped<IVehicleClustering, VehicleClustering>();
+        services.AddConfiguration<RedisConfiguration>("VehicleStats");
+        services.AddConfiguration<ClusterConfiguration>("Cluster");
     })
     .Build();
 
