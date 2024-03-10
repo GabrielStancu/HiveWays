@@ -4,5 +4,5 @@ namespace HiveWays.FleetIntegration.Business;
 
 public interface IVehicleClustering
 {
-    List<VehicleCluster> KMeans(List<VehicleStats> cars, int k);
+    List<VehicleCluster> KMeans(List<VehicleStats> cars);
 }

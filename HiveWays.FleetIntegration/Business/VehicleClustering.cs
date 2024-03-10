@@ -6,16 +6,20 @@ namespace HiveWays.FleetIntegration.Business;
 
 public class VehicleClustering : IVehicleClustering
 {
+    private readonly ClusterConfiguration _clusterConfiguration;
     private readonly ILogger<VehicleClustering> _logger;
 
-    public VehicleClustering(ILogger<VehicleClustering> logger)
+    public VehicleClustering(ClusterConfiguration clusterConfiguration,
+        ILogger<VehicleClustering> logger)
     {
+        _clusterConfiguration = clusterConfiguration;
         _logger = logger;
     }
 
-    // TODO: add car length parameters, consider the orientation (same area but opposite directions => different clusters)
-    public List<VehicleCluster> KMeans(List<VehicleStats> cars, int k)
+    public List<VehicleCluster> KMeans(List<VehicleStats> cars)
     {
+        int k = ComputeClustersCount(cars.Count);
+
         // Initialize cluster centers (randomly or using a strategy)
         List<VehicleCluster> clusters = InitializeClusters(cars, k);
 
@@ -38,6 +42,16 @@ public class VehicleClustering : IVehicleClustering
         }
 
         return clusters;
+    }
+
+    private int ComputeClustersCount(int carsCount)
+    {
+        var area = _clusterConfiguration.ClusterRadius * _clusterConfiguration.ClusterRadius * double.Pi;
+        var carArea = (_clusterConfiguration.VehicleLength + _clusterConfiguration.VehicleDistance) *
+                      (_clusterConfiguration.VehicleWidth + _clusterConfiguration.VehicleDistance);
+        var carsPerCluster = Math.Ceiling(area / carArea);
+
+        return 1 + carsCount / (int)carsPerCluster;
     }
 
     private List<VehicleCluster> InitializeClusters(List<VehicleStats> cars, int k)
@@ -75,12 +89,19 @@ public class VehicleClustering : IVehicleClustering
 
     private double CalculateDistance(VehicleStats vehicle, VehicleCluster cluster)
     {
+        var clusterOrientation = CalculateMean(cluster.VehicleStats, c => c.Heading);
+        var hasClusterOrientation = clusterOrientation - _clusterConfiguration.OrientationLimit <= vehicle.Heading
+                                    && clusterOrientation + _clusterConfiguration.OrientationLimit >= vehicle.Heading;
+
+        if (!hasClusterOrientation)
+            return double.PositiveInfinity;
+
         // Euclidean distance
         var latitudeDeviation = vehicle.Latitude - CalculateMean(cluster.VehicleStats, c => c.Latitude);
         var longitudeDeviation = vehicle.Longitude - CalculateMean(cluster.VehicleStats, c => c.Longitude);
         var latitudeDistance = Math.Pow((double)latitudeDeviation, 2);
         var longitudeDistance = Math.Pow((double)longitudeDeviation, 2);
-
+        
         return Math.Sqrt(latitudeDistance + longitudeDistance);
     }
 
@@ -98,7 +119,12 @@ public class VehicleClustering : IVehicleClustering
             cluster.VehicleStats = new List<VehicleStats> { new()
             {
                 Latitude = CalculateMean(cluster.VehicleStats, c => c.Latitude),
-                Longitude = CalculateMean(cluster.VehicleStats, c => c.Longitude)
+                Longitude = CalculateMean(cluster.VehicleStats, c => c.Longitude),
+                AccelerationKmph = CalculateMean(cluster.VehicleStats, c => c.AccelerationKmph),
+                Heading = CalculateMean(cluster.VehicleStats, c => c.Heading),
+                SpeedKmph = CalculateMean(cluster.VehicleStats, c => c.SpeedKmph),
+                Timestamp = DateTime.UtcNow,
+                Id = clusters.IndexOf(cluster)
             }};
         }
     }

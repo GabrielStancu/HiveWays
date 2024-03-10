@@ -12,7 +12,6 @@ namespace HiveWays.FleetIntegration
         private readonly IRedisClient<VehicleStats> _redisClient;
         private readonly IVehicleClustering _vehicleClustering;
         private readonly ILogger<CachePolling> _logger;
-        private readonly ClusterConfiguration _clusterConfiguration;
 
         public CachePolling(IRedisClient<VehicleStats> redisClient,
             IVehicleClustering vehicleClustering,
@@ -22,14 +21,17 @@ namespace HiveWays.FleetIntegration
             _redisClient = redisClient;
             _vehicleClustering = vehicleClustering;
             _logger = logger;
-            _clusterConfiguration = clusterConfiguration;
         }
 
         [Function("CachePolling")]
         public async Task Run([TimerTrigger("* */1 * * * *")] TimerInfo myTimer)
         {
-            var vehicleStats = await _redisClient.GetElementsAsync();
-            var clusters = _vehicleClustering.KMeans(vehicleStats.ToList(), _clusterConfiguration.ClustersCount);
+            var vehicleStatsSets = await _redisClient.GetElementsAsync();
+            var vehicleStats = vehicleStatsSets
+                .GroupBy(v => v.Id)
+                .Select(g => g.ToList())
+                .Select(v => v[v.Count / 2]);
+            var clusters = _vehicleClustering.KMeans(vehicleStats.ToList());
 
             _logger.LogInformation("Found clusters: {VehicleClusters}", JsonSerializer.Serialize(clusters));
         }
