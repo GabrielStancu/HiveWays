@@ -30,8 +30,12 @@ namespace HiveWays.FleetIntegration
             var vehicleStats = vehicleStatsSets
                 .GroupBy(v => v.Id)
                 .Select(g => g.ToList())
-                .Select(v => v[v.Count / 2]);
-            var clusters = _vehicleClustering.KMeans(vehicleStats.ToList());
+                .Select(v => v[v.Count / 2])
+                .ToList();
+
+            _logger.LogInformation("Clustering vehicles: {VehiclesToCluster}", JsonSerializer.Serialize(vehicleStats.Select(v => v.Id)));
+
+            var clusters = _vehicleClustering.KMeans(vehicleStats);
 
             _logger.LogInformation("Found clusters: {VehicleClusters}", JsonSerializer.Serialize(clusters));
         }

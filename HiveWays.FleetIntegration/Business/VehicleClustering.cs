@@ -63,7 +63,11 @@ public class VehicleClustering : IVehicleClustering
         {
             // Randomly select initial cluster centers from the cars
             int randomIndex = random.Next(cars.Count);
-            clusters.Add(new VehicleCluster { VehicleStats = new List<VehicleStats> { cars[randomIndex] } });
+            var randomVehicle = cars[randomIndex];
+            var cluster = new VehicleCluster { VehicleStats = new List<VehicleStats> { randomVehicle } };
+            
+            clusters.Add(cluster);
+            AdjustClusterAverages(cluster, randomVehicle);
         }
 
         return clusters;
@@ -71,8 +75,11 @@ public class VehicleClustering : IVehicleClustering
 
     private void AssignToClusters(List<VehicleStats> vehicles, List<VehicleCluster> clusters)
     {
-        foreach (VehicleStats vehicle in vehicles)
+        foreach (var vehicle in vehicles)
         {
+            if (clusters.Any(c => c.VehicleStats.Any(v => v.Id == vehicle.Id)))
+                continue;
+
             // Find the nearest cluster based on the distance metric
             var nearestCluster = clusters.MinBy(cluster => CalculateDistance(vehicle, cluster));
 
@@ -84,28 +91,34 @@ public class VehicleClustering : IVehicleClustering
 
             // Assign the car to the nearest cluster
             nearestCluster.VehicleStats.Add(vehicle);
+
+            // Recompute the averages for the cluster
+            AdjustClusterAverages(nearestCluster, vehicle);
         }
     }
 
     private double CalculateDistance(VehicleStats vehicle, VehicleCluster cluster)
     {
-        var clusterOrientation = CalculateMean(cluster.VehicleStats, c => c.Heading);
-        var hasClusterOrientation = clusterOrientation - _clusterConfiguration.OrientationLimit <= vehicle.Heading
-                                    && clusterOrientation + _clusterConfiguration.OrientationLimit >= vehicle.Heading;
+        cluster.AverageOrientation ??= ComputeMean(cluster.VehicleStats, c => c.Heading);
+        var hasClusterOrientation = cluster.AverageOrientation - _clusterConfiguration.OrientationLimit <= vehicle.Heading
+                                    && cluster.AverageOrientation + _clusterConfiguration.OrientationLimit >= vehicle.Heading;
 
         if (!hasClusterOrientation)
             return double.PositiveInfinity;
 
         // Euclidean distance
-        var latitudeDeviation = vehicle.Latitude - CalculateMean(cluster.VehicleStats, c => c.Latitude);
-        var longitudeDeviation = vehicle.Longitude - CalculateMean(cluster.VehicleStats, c => c.Longitude);
+        cluster.CenterLatitude ??= ComputeMean(cluster.VehicleStats, c => c.Latitude);
+        cluster.CenterLongitude ??= ComputeMean(cluster.VehicleStats, c => c.Longitude);
+
+        var latitudeDeviation = vehicle.Latitude - cluster.CenterLatitude;
+        var longitudeDeviation = vehicle.Longitude - cluster.CenterLongitude;
         var latitudeDistance = Math.Pow((double)latitudeDeviation, 2);
         var longitudeDistance = Math.Pow((double)longitudeDeviation, 2);
         
         return Math.Sqrt(latitudeDistance + longitudeDistance);
     }
 
-    private decimal CalculateMean(List<VehicleStats> vehicles, Func<VehicleStats, decimal> propertySelector)
+    private decimal ComputeMean(List<VehicleStats> vehicles, Func<VehicleStats, decimal> propertySelector)
     {
         // Helper method to calculate the mean of a property for a list of cars
         return vehicles.Average(propertySelector);
@@ -115,18 +128,43 @@ public class VehicleClustering : IVehicleClustering
     {
         foreach (VehicleCluster cluster in clusters)
         {
+            // Assign the vehicle ids to the clusters before recomputing the centers
+            cluster.VehicleIds = cluster.VehicleStats
+                .Where(v => !v.IsComputedClusterCenter)
+                .Select(v => v.Id)
+                .ToList();
+
             // Calculate the mean for each property in the cluster and set it as the new center
             cluster.VehicleStats = new List<VehicleStats> { new()
             {
-                Latitude = CalculateMean(cluster.VehicleStats, c => c.Latitude),
-                Longitude = CalculateMean(cluster.VehicleStats, c => c.Longitude),
-                AccelerationKmph = CalculateMean(cluster.VehicleStats, c => c.AccelerationKmph),
-                Heading = CalculateMean(cluster.VehicleStats, c => c.Heading),
-                SpeedKmph = CalculateMean(cluster.VehicleStats, c => c.SpeedKmph),
+                Latitude = ComputeMean(cluster.VehicleStats, c => c.Latitude),
+                Longitude = ComputeMean(cluster.VehicleStats, c => c.Longitude),
+                AccelerationKmph = ComputeMean(cluster.VehicleStats, c => c.AccelerationKmph),
+                Heading = ComputeMean(cluster.VehicleStats, c => c.Heading),
+                SpeedKmph = ComputeMean(cluster.VehicleStats, c => c.SpeedKmph),
                 Timestamp = DateTime.UtcNow,
-                Id = clusters.IndexOf(cluster)
+                Id = clusters.IndexOf(cluster),
+                IsComputedClusterCenter = true
             }};
         }
+    }
+
+    private void AdjustClusterAverages(VehicleCluster cluster, VehicleStats vehicle)
+    {
+        cluster.AverageOrientation ??= decimal.Zero;
+        cluster.AverageOrientation =
+            (cluster.AverageOrientation * (cluster.VehicleStats.Count - 1) + vehicle.Heading) /
+            cluster.VehicleStats.Count;
+
+        cluster.CenterLatitude ??= decimal.Zero;
+        cluster.CenterLatitude =
+            (cluster.CenterLatitude * (cluster.VehicleStats.Count - 1) + vehicle.Latitude) /
+            cluster.VehicleStats.Count;
+
+        cluster.CenterLongitude ??= decimal.Zero;
+        cluster.CenterLongitude =
+            (cluster.CenterLongitude * (cluster.VehicleStats.Count - 1) + vehicle.Longitude) /
+            cluster.VehicleStats.Count;
     }
 
     private bool ClustersConverged(List<VehicleCluster> oldClusters, List<VehicleCluster> newClusters)

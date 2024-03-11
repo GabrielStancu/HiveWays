@@ -9,4 +9,5 @@ public class VehicleStats : IIdentifiable
     public decimal SpeedKmph { get; set; }
     public decimal Heading { get; set; }
     public decimal AccelerationKmph { get; set; }
+    public bool IsComputedClusterCenter { get; set; }
 }
