@@ -9,6 +9,8 @@ public class VehicleClustering : IVehicleClustering
     private readonly ClusterConfiguration _clusterConfiguration;
     private readonly ILogger<VehicleClustering> _logger;
 
+    private List<VehicleCluster> _vehicleClusters = new();
+
     public VehicleClustering(ClusterConfiguration clusterConfiguration,
         ILogger<VehicleClustering> logger)
     {
@@ -18,30 +20,32 @@ public class VehicleClustering : IVehicleClustering
 
     public List<VehicleCluster> KMeans(List<VehicleStats> cars)
     {
-        int k = ComputeClustersCount(cars.Count);
-
-        // Initialize cluster centers (randomly or using a strategy)
-        List<VehicleCluster> clusters = InitializeClusters(cars, k);
+        if (!_vehicleClusters.Any())
+        {
+            int k = ComputeClustersCount(cars.Count);
+            // Initialize cluster centers (randomly or using a strategy)
+            _vehicleClusters = InitializeClusters(cars, k);
+        }
 
         while (true)
         {
             // Assign each car to the nearest cluster
-            AssignToClusters(cars, clusters);
+            AssignToClusters(cars);
 
             // Save current cluster centers for convergence check
-            List<VehicleCluster> oldClusters = new List<VehicleCluster>(clusters);
+            List<VehicleCluster> oldClusters = new List<VehicleCluster>(_vehicleClusters);
 
             // Recalculate cluster centers
-            RecalculateCenters(clusters);
+            RecalculateCenters();
 
             // Check for convergence
-            if (ClustersConverged(oldClusters, clusters))
+            if (ClustersConverged(oldClusters, _vehicleClusters))
             {
                 break;
             }
         }
 
-        return clusters;
+        return _vehicleClusters;
     }
 
     private int ComputeClustersCount(int carsCount)
@@ -73,15 +77,15 @@ public class VehicleClustering : IVehicleClustering
         return clusters;
     }
 
-    private void AssignToClusters(List<VehicleStats> vehicles, List<VehicleCluster> clusters)
+    private void AssignToClusters(List<VehicleStats> vehicles)
     {
         foreach (var vehicle in vehicles)
         {
-            if (clusters.Any(c => c.VehicleStats.Any(v => v.Id == vehicle.Id)))
+            if (_vehicleClusters.Any(c => c.VehicleStats.Any(v => v.Id == vehicle.Id)))
                 continue;
 
             // Find the nearest cluster based on the distance metric
-            var nearestCluster = clusters.MinBy(cluster => CalculateDistance(vehicle, cluster));
+            var nearestCluster = _vehicleClusters.MinBy(cluster => CalculateDistance(vehicle, cluster));
 
             if (nearestCluster is null)
             {
@@ -124,9 +128,9 @@ public class VehicleClustering : IVehicleClustering
         return vehicles.Average(propertySelector);
     }
 
-    private void RecalculateCenters(List<VehicleCluster> clusters)
+    private void RecalculateCenters()
     {
-        foreach (VehicleCluster cluster in clusters)
+        foreach (VehicleCluster cluster in _vehicleClusters)
         {
             // Assign the vehicle ids to the clusters before recomputing the centers
             cluster.VehicleIds = cluster.VehicleStats
@@ -143,7 +147,7 @@ public class VehicleClustering : IVehicleClustering
                 Heading = ComputeMean(cluster.VehicleStats, c => c.Heading),
                 SpeedKmph = ComputeMean(cluster.VehicleStats, c => c.SpeedKmph),
                 Timestamp = DateTime.UtcNow,
-                Id = clusters.IndexOf(cluster),
+                Id = _vehicleClusters.IndexOf(cluster),
                 IsComputedClusterCenter = true
             }};
         }

@@ -13,7 +13,7 @@ var host = new HostBuilder()
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
         services.AddSingleton(typeof(IRedisClient<>), typeof(RedisClient<>));
-        services.AddScoped<IVehicleClustering, VehicleClustering>();
+        services.AddSingleton<IVehicleClustering, VehicleClustering>();
         services.AddConfiguration<RedisConfiguration>("VehicleStats");
         services.AddConfiguration<ClusterConfiguration>("Cluster");
     })
