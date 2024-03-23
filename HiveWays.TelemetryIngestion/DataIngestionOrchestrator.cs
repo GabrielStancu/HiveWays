@@ -16,7 +16,7 @@ public class DataIngestionOrchestrator
 {
     private readonly IDataPointValidator _dataPointValidator;
     private readonly ITableStorageClient<DataPointEntity> _tableStorageClient;
-    private readonly IRedisClient<VehicleStats> _redisClient;
+    private readonly IRedisClient<VehicleInfo> _redisClient;
     private readonly IngestionConfiguration _ingestionConfiguration;
     private readonly ILogger<DataIngestionOrchestrator> _logger;
     
@@ -25,7 +25,7 @@ public class DataIngestionOrchestrator
     public DataIngestionOrchestrator(
         IDataPointValidator dataPointValidator,
         ITableStorageClient<DataPointEntity> tableStorageClient,
-        IRedisClient<VehicleStats> redisClient,
+        IRedisClient<VehicleInfo> redisClient,
         IngestionConfiguration ingestionConfiguration,
         ILogger<DataIngestionOrchestrator> logger)
     {
@@ -119,7 +119,7 @@ public class DataIngestionOrchestrator
     }
 
     [Function(nameof(StoreVehicleStats))]
-    public async Task StoreVehicleStats([ActivityTrigger] IEnumerable<VehicleStats> vehicleStats)
+    public async Task StoreVehicleStats([ActivityTrigger] IEnumerable<VehicleInfo> vehicleStats)
     {
         try
         {
@@ -133,9 +133,9 @@ public class DataIngestionOrchestrator
         }
     }
 
-    private IEnumerable<VehicleStats> MapDataPointsToKnownValues(IEnumerable<DataPoint> dataPoints)
+    private IEnumerable<VehicleInfo> MapDataPointsToKnownValues(IEnumerable<DataPoint> dataPoints)
     {
-        return dataPoints.Select(dp => new VehicleStats
+        return dataPoints.Select(dp => new VehicleInfo
         {
             Id = dp.Id,
             Timestamp = _timeReference.AddSeconds(dp.TimeOffsetSeconds),

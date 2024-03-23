@@ -27,15 +27,28 @@ namespace HiveWays.FleetIntegration
         public async Task Run([TimerTrigger("* */1 * * * *")] TimerInfo myTimer)
         {
             var vehicleStatsSets = await _redisClient.GetElementsAsync();
-            var vehicleStats = vehicleStatsSets
+            var vehicles = vehicleStatsSets
                 .GroupBy(v => v.Id)
-                .Select(g => g.ToList())
-                .Select(v => v[v.Count / 2])
-                .ToList();
+                .Select(g => new Vehicle
+                {
+                    Id = g.Key,
+                    Info = g.Select(s => new VehicleInfo
+                    {
+                        Location = new GeoPoint
+                        {
+                            Latitude = s.Latitude,
+                            Longitude = s.Longitude
+                        },
+                        Heading = s.Heading,
+                        AccelerationKmph = s.AccelerationKmph,
+                        SpeedKmph = s.SpeedKmph,
+                        Timestamp = s.Timestamp
+                    }).ToList()
+                }).ToList();
 
-            _logger.LogInformation("Clustering vehicles: {VehiclesToCluster}", JsonSerializer.Serialize(vehicleStats.Select(v => v.Id)));
+            _logger.LogInformation("Clustering vehicles: {VehiclesToCluster}", JsonSerializer.Serialize(vehicles.Select(v => v.Id)));
 
-            var clusters = _vehicleClustering.KMeans(vehicleStats);
+            var clusters = _vehicleClustering.KMeans(vehicles);
 
             _logger.LogInformation("Found clusters: {VehicleClusters}", JsonSerializer.Serialize(clusters));
         }
