@@ -13,7 +13,7 @@ public class VehicleInfo
 {
     public DateTime Timestamp { get; set; }
     public GeoPoint Location { get; set; }
-    public decimal SpeedKmph { get; set; }
-    public decimal Heading { get; set; }
-    public decimal AccelerationKmph { get; set; }
+    public double SpeedKmph { get; set; }
+    public double Heading { get; set; }
+    public double AccelerationKmph { get; set; }
 }

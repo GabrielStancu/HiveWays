@@ -16,7 +16,7 @@ public class DataIngestionOrchestrator
 {
     private readonly IDataPointValidator _dataPointValidator;
     private readonly ITableStorageClient<DataPointEntity> _tableStorageClient;
-    private readonly IRedisClient<VehicleInfo> _redisClient;
+    private readonly IRedisClient<VehicleStats> _redisClient;
     private readonly IngestionConfiguration _ingestionConfiguration;
     private readonly ILogger<DataIngestionOrchestrator> _logger;
     
@@ -25,7 +25,7 @@ public class DataIngestionOrchestrator
     public DataIngestionOrchestrator(
         IDataPointValidator dataPointValidator,
         ITableStorageClient<DataPointEntity> tableStorageClient,
-        IRedisClient<VehicleInfo> redisClient,
+        IRedisClient<VehicleStats> redisClient,
         IngestionConfiguration ingestionConfiguration,
         ILogger<DataIngestionOrchestrator> logger)
     {
@@ -43,7 +43,7 @@ public class DataIngestionOrchestrator
         var inputDataPoints = context.GetInput<IEnumerable<DataPoint>>().ToList();
         var validDataPoints = await ValidateDataPointsAsync(context, inputDataPoints);
 
-        var vehicleStats = MapDataPointsToKnownValues(validDataPoints);
+        var vehicleStats = MapDataPointsToVehicleStats(validDataPoints);
         await context.CallActivityAsync(nameof(StoreVehicleStats), vehicleStats);
 
         var validDataPointEntities = await context.CallActivityAsync<IEnumerable<DataPointEntity>>(nameof(EnrichDataPoints), validDataPoints);
@@ -90,7 +90,7 @@ public class DataIngestionOrchestrator
                 RowKey = _timeReference.AddSeconds(dataPoint.TimeOffsetSeconds)
                     .ToString("o"), // TODO: make the simulator generate timestamps properly
                 SpeedMps = dataPoint.Speed,
-                SpeedKmph = dataPoint.Speed * 3.6m,
+                SpeedKmph = dataPoint.Speed * 3.6,
                 AccelerationMps = dataPoint.Acceleration,
                 AccelerationKmph = dataPoint.Acceleration * 12960,
                 Latitude = _ingestionConfiguration.ReferenceLatitude + dataPoint.Y,
@@ -119,7 +119,7 @@ public class DataIngestionOrchestrator
     }
 
     [Function(nameof(StoreVehicleStats))]
-    public async Task StoreVehicleStats([ActivityTrigger] IEnumerable<VehicleInfo> vehicleStats)
+    public async Task StoreVehicleStats([ActivityTrigger] IEnumerable<VehicleStats> vehicleStats)
     {
         try
         {
@@ -133,9 +133,9 @@ public class DataIngestionOrchestrator
         }
     }
 
-    private IEnumerable<VehicleInfo> MapDataPointsToKnownValues(IEnumerable<DataPoint> dataPoints)
+    private IEnumerable<VehicleStats> MapDataPointsToVehicleStats(IEnumerable<DataPoint> dataPoints)
     {
-        return dataPoints.Select(dp => new VehicleInfo
+        return dataPoints.Select(dp => new VehicleStats
         {
             Id = dp.Id,
             Timestamp = _timeReference.AddSeconds(dp.TimeOffsetSeconds),

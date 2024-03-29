@@ -28,7 +28,7 @@ public static class ItemsDataGenerator
                         Brand = brand,
                         Model = carModels[brand][random.Next(carModels[brand].Length)],
                         FabricationYear = Math.Max(random.NextGaussian(2011, 4), DateTime.UtcNow.Year),
-                        Range = Math.Max(0, (decimal)random.NextGaussian(175000, 30000)),
+                        Range = Math.Max(0, random.NextGaussian(175000, 30000)),
                         FuelType = GetFuelType(i)
                     };
                     break;

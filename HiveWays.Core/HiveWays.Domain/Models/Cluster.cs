@@ -8,20 +8,20 @@ public class Cluster : IIdentifiable
 
     public void AddVehicle(Vehicle vehicle)
     {
-        var medianInfo = vehicle.Info[vehicle.Info.Count / 2];
+        var medianLocation = vehicle.MedianInfo.Location;
 
         if (Center is null)
         {
             Center = new GeoPoint
             {
-                Latitude = medianInfo.Latitude,
-                Longitude = medianInfo.Longitude
+                Latitude = medianLocation.Latitude,
+                Longitude = medianLocation.Longitude
             };
         }
         else
         {
-            var newLatitude = (Center.Latitude * Vehicles.Count + medianInfo.Latitude) / (Vehicles.Count + 1);
-            var newLongitude = (Center.Longitude * Vehicles.Count + medianInfo.Longitude) / (Vehicles.Count + 1);
+            var newLatitude = (Center.Latitude * Vehicles.Count + medianLocation.Latitude) / (Vehicles.Count + 1);
+            var newLongitude = (Center.Longitude * Vehicles.Count + medianLocation.Longitude) / (Vehicles.Count + 1);
 
             Center.Latitude = newLatitude;
             Center.Longitude = newLongitude;

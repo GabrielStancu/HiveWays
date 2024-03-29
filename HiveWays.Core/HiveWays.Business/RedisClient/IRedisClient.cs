@@ -1,6 +1,8 @@
-﻿namespace HiveWays.Business.RedisClient;
+﻿using HiveWays.Domain.Models;
 
-public interface IRedisClient<T>
+namespace HiveWays.Business.RedisClient;
+
+public interface IRedisClient<T> where T : IIdentifiable
 {
     Task StoreElementsAsync(IEnumerable<T> elements);
     Task<IEnumerable<T>> GetElementsAsync();

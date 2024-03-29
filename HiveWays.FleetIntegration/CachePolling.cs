@@ -10,16 +10,16 @@ namespace HiveWays.FleetIntegration
     public class CachePolling
     {
         private readonly IRedisClient<VehicleStats> _redisClient;
-        private readonly IVehicleClustering _vehicleClustering;
+        private readonly IVehicleClusterManager _vehicleClusterManager;
         private readonly ILogger<CachePolling> _logger;
 
         public CachePolling(IRedisClient<VehicleStats> redisClient,
-            IVehicleClustering vehicleClustering,
+            IVehicleClusterManager vehicleClusterManager,
             ILogger<CachePolling> logger,
             ClusterConfiguration clusterConfiguration)
         {
             _redisClient = redisClient;
-            _vehicleClustering = vehicleClustering;
+            _vehicleClusterManager = vehicleClusterManager;
             _logger = logger;
         }
 
@@ -48,7 +48,7 @@ namespace HiveWays.FleetIntegration
 
             _logger.LogInformation("Clustering vehicles: {VehiclesToCluster}", JsonSerializer.Serialize(vehicles.Select(v => v.Id)));
 
-            var clusters = _vehicleClustering.KMeans(vehicles);
+            var clusters = await _vehicleClusterManager.ClusterVehiclesAsync(vehicles);
 
             _logger.LogInformation("Found clusters: {VehicleClusters}", JsonSerializer.Serialize(clusters));
         }

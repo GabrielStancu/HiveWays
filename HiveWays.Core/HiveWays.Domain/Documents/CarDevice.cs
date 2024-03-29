@@ -6,6 +6,6 @@ public class CarDevice : BaseDevice
     public string Model { get; set; }
     public int FabricationYear { get; set; }
     public FuelType FuelType { get; set; }
-    public decimal Range { get; set; }
+    public double Range { get; set; }
     public override ObjectType ObjectType => ObjectType.Car;
 }
