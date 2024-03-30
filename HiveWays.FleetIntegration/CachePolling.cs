@@ -2,6 +2,7 @@ using System.Text.Json;
 using HiveWays.Business.RedisClient;
 using HiveWays.Domain.Models;
 using HiveWays.FleetIntegration.Business;
+using HiveWays.FleetIntegration.Business.Interfaces;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 

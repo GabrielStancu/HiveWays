@@ -1,18 +1,26 @@
 ﻿using HiveWays.Domain.Models;
+using HiveWays.FleetIntegration.Business.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace HiveWays.FleetIntegration.Business;
 
 public class VehicleClusterManager : IVehicleClusterManager
 {
+    private readonly IDistanceCalculator _distanceCalculator;
+    private readonly IDirectionCalculator _directionCalculator;
     private readonly ClusterConfiguration _clusterConfiguration;
     private readonly ILogger<VehicleClusterManager> _logger;
-    private List<Cluster> _clusters = new(); // We should write and get these from the cache
-    private const double EarthRadiusKm = 6371.0;
 
-    public VehicleClusterManager(ClusterConfiguration clusterConfiguration,
+    private List<Cluster> _clusters = new(); // We should write and get these from the cache; when writing to cache, map Vehicles to VehicleInfo, compute averages in new class for cached cluster
+    private int _id;
+
+    public VehicleClusterManager(IDistanceCalculator distanceCalculator,
+        IDirectionCalculator directionCalculator,
+        ClusterConfiguration clusterConfiguration,
         ILogger<VehicleClusterManager> logger)
     {
+        _distanceCalculator = distanceCalculator;
+        _directionCalculator = directionCalculator;
         _clusterConfiguration = clusterConfiguration;
         _logger = logger;
     }
@@ -21,40 +29,44 @@ public class VehicleClusterManager : IVehicleClusterManager
     {
         if (!_clusters.Any())
         {
-            InitializeClusters(vehicles);
+            _logger.LogInformation("No clusters found, initializing the clusters...");
+            _clusters = InitializeClusters(vehicles);
+
             return _clusters;
         }
 
-        await ReorganizeClustersAsync(vehicles);
+        _logger.LogInformation("Clusters found, reorganizing the clusters...");
+        ReorganizeClusters(vehicles);
+        
         return _clusters;
     }
 
-    private void InitializeClusters(List<Vehicle> vehicles)
+    private List<Cluster> InitializeClusters(List<Vehicle> vehicles)
     {
+        var clusters = new List<Cluster>();
+
         foreach (var vehicle in vehicles)
         {
-            if (vehicle.IsAssignedToCluster) 
+            if (vehicle.IsAssignedToCluster)
                 continue;
 
-            vehicle.IsAssignedToCluster = true;
             var cluster = CreateCluster(vehicle);
             AssignNearbyVehiclesToCluster(cluster, vehicle, vehicles);
-            _clusters.Add(cluster);
+            clusters.Add(cluster);
+            vehicle.IsAssignedToCluster = true;
         }
-    }
 
-    private async Task ReorganizeClustersAsync(List<Vehicle> vehicles)
-    {
-        await Task.Delay(10);
+        return clusters;
     }
 
     private Cluster CreateCluster(Vehicle vehicle)
     {
         var cluster = new Cluster
         {
-            Id = _clusters.Max(c => c.Id) + 1
+            Id = ++_id
         };
         cluster.AddVehicle(vehicle);
+        vehicle.IsAssignedToCluster = true;
 
         return cluster;
     }
@@ -65,10 +77,10 @@ public class VehicleClusterManager : IVehicleClusterManager
 
         foreach (var nearbyVehicle in nearbyVehicles)
         {
-            if (nearbyVehicle.IsAssignedToCluster) 
+            if (nearbyVehicle.IsAssignedToCluster)
                 continue;
 
-            if (!IsSameDirection(clusterHead, nearbyVehicle)) 
+            if (!_directionCalculator.IsSameDirection(clusterHead, nearbyVehicle))
                 continue;
 
             cluster.AddVehicle(nearbyVehicle);
@@ -80,37 +92,108 @@ public class VehicleClusterManager : IVehicleClusterManager
     private List<Vehicle> FindNearbyVehicles(Vehicle clusterHead, List<Vehicle> vehicles)
     {
         return vehicles
-            .Where(v => !v.IsAssignedToCluster && IsWithinDistanceToCluster(clusterHead, v))
+            .Where(v => !v.IsAssignedToCluster && _distanceCalculator.IsWithinDistanceToCluster(clusterHead, v))
             .ToList();
     }
 
-    private bool IsSameDirection(Vehicle clusterHead, Vehicle nearbyVehicle)
+    private void ReorganizeClusters(List<Vehicle> vehicles)
     {
-        // Logic to compute direction and compare with cluster's direction
-        // You need to implement your own logic here to compare directions
-        return true; // For demonstration purposes, assuming direction is same
+        foreach (var cluster in _clusters.ToList())
+        {
+            foreach (var vehicle in cluster.Vehicles.ToList())
+            {
+                ProcessClusterVehicle(vehicles, vehicle, cluster);
+            }
+        }
     }
 
-    private bool IsWithinDistanceToCluster(Vehicle clusterHead, Vehicle nearbyVehicle)
-        => Distance(clusterHead.MedianInfo.Location, nearbyVehicle.MedianInfo.Location) <=
-           _clusterConfiguration.ClusterRadius;
-
-    private double Distance(GeoPoint point1, GeoPoint point2)
+    private void ProcessClusterVehicle(List<Vehicle> vehicles, Vehicle vehicle, Cluster cluster)
     {
-        double distanceLat = ToRadians(point2.Latitude - point1.Latitude);
-        double distanceLon = ToRadians(point2.Longitude - point1.Longitude);
+        var incomingVehicle = vehicles.FirstOrDefault(v => v.Id == vehicle.Id);
+        if (incomingVehicle is null)
+        {
+            _logger.LogWarning("Vehicle {VehicleId} from {ClusterId} not found in incoming vehicles", vehicle.Id,
+                cluster.Id);
+            cluster.RemoveVehicle(vehicle.Id);
+            return;
+        }
 
-        double a = Math.Sin(distanceLat / 2) * Math.Sin(distanceLat / 2) +
-                   Math.Cos(ToRadians(point1.Latitude)) * Math.Cos(ToRadians(point2.Latitude)) *
-                   Math.Sin(distanceLon / 2) * Math.Sin(distanceLon / 2);
+        var distanceToCenter = _distanceCalculator.Distance(cluster.Center, incomingVehicle.MedianInfo.Location);
 
-        double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        if (distanceToCenter > _clusterConfiguration.ClusterRadius)
+        {
+            cluster.RemoveVehicle(incomingVehicle.Id);
 
-        return EarthRadiusKm * c;
+            var suitableCluster = FindSuitableCluster(incomingVehicle, vehicles);
+            if (suitableCluster != null)
+            {
+                suitableCluster.AddVehicle(incomingVehicle);
+            }
+            else
+            {
+                var newCluster = CreateCluster(incomingVehicle);
+                _clusters.Add(newCluster);
+            }
+        }
+        else
+        {
+            var clusterHead = vehicles
+                .FirstOrDefault(v => cluster.Vehicles
+                    .Any(cv => cv.Id == v.Id));
+
+            if (clusterHead is null)
+            {
+                _logger.LogWarning("Could not find cluster head for cluster {ClusterId}", cluster.Id);
+                return;
+            }
+
+            if (!_directionCalculator.IsSameDirection(clusterHead, incomingVehicle))
+            {
+                cluster.RemoveVehicle(incomingVehicle.Id);
+                var suitableCluster = FindSuitableCluster(incomingVehicle, vehicles);
+
+                if (suitableCluster != null)
+                {
+                    suitableCluster.AddVehicle(incomingVehicle);
+                }
+                else
+                {
+                    var newCluster = CreateCluster(incomingVehicle);
+                    _clusters.Add(newCluster);
+                }
+            }
+        }
     }
 
-    private static double ToRadians(double degrees)
+    private Cluster? FindSuitableCluster(Vehicle vehicle, List<Vehicle> vehicles)
     {
-        return degrees * Math.PI / 180.0;
+        Cluster? closestCluster = null;
+        double minDistance = double.MaxValue;
+
+        foreach (var cluster in _clusters)
+        {
+            var distanceToCenter = _distanceCalculator.Distance(cluster.Center, vehicle.MedianInfo.Location);
+            var clusterHead = vehicles
+                .FirstOrDefault(v => cluster.Vehicles
+                    .Any(cv => cv.Id == v.Id));
+
+            if (clusterHead is null)
+            {
+                _logger.LogWarning("Could not find cluster head for cluster {ClusterId}", cluster.Id);
+                return closestCluster;
+            }
+
+            if (distanceToCenter <= _clusterConfiguration.ClusterRadius && 
+                _directionCalculator.IsSameDirection(clusterHead, vehicle))
+            {
+                if (distanceToCenter < minDistance)
+                {
+                    minDistance = distanceToCenter;
+                    closestCluster = cluster;
+                }
+            }
+        }
+
+        return closestCluster;
     }
 }

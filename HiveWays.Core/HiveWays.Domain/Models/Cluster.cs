@@ -3,13 +3,15 @@
 public class Cluster : IIdentifiable
 {
     public int Id { get; set; }
-    public List<int> Vehicles { get; } = new();
+    public List<Vehicle> Vehicles { get; } = new();
     public GeoPoint Center { get; private set; }
 
     public void AddVehicle(Vehicle vehicle)
     {
-        var medianLocation = vehicle.MedianInfo.Location;
+        Vehicles.Add(vehicle);
 
+        var medianLocation = vehicle.MedianInfo.Location;
+        
         if (Center is null)
         {
             Center = new GeoPoint
@@ -20,13 +22,36 @@ public class Cluster : IIdentifiable
         }
         else
         {
-            var newLatitude = (Center.Latitude * Vehicles.Count + medianLocation.Latitude) / (Vehicles.Count + 1);
-            var newLongitude = (Center.Longitude * Vehicles.Count + medianLocation.Longitude) / (Vehicles.Count + 1);
+            Center.Latitude = RecomputeAverageAfterAdd(Center.Latitude, medianLocation.Latitude);
+            Center.Longitude = RecomputeAverageAfterAdd(Center.Longitude, medianLocation.Longitude);
+        }
+    }
 
-            Center.Latitude = newLatitude;
-            Center.Longitude = newLongitude;
+    public void RemoveVehicle(int vehicleId)
+    {
+        var vehicle = Vehicles.FirstOrDefault(v => v.Id == vehicleId);
+        if (vehicle is null)
+            return;
+
+        Vehicles.Remove(vehicle);
+        if (!Vehicles.Any())
+        {
+            Center = null;
+            return;
         }
 
-        Vehicles.Add(vehicle.Id);
+        var medianLocation = vehicle.MedianInfo.Location;
+        Center.Latitude = RecomputeAverageAfterRemove(Center.Latitude, medianLocation.Latitude);
+        Center.Longitude = RecomputeAverageAfterRemove(Center.Longitude, medianLocation.Longitude);
+    }
+
+    private double RecomputeAverageAfterAdd(double oldAverage, double addedValue)
+    {
+        return (oldAverage * (Vehicles.Count - 1) + addedValue) / Vehicles.Count;
+    }
+
+    private double RecomputeAverageAfterRemove(double oldAverage, double removedValue)
+    {
+        return (oldAverage * (Vehicles.Count + 1) - removedValue) / Vehicles.Count;
     }
 }

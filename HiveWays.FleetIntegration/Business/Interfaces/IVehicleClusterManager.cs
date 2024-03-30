@@ -1,6 +1,6 @@
 ﻿using HiveWays.Domain.Models;
 
-namespace HiveWays.FleetIntegration.Business;
+namespace HiveWays.FleetIntegration.Business.Interfaces;
 
 public interface IVehicleClusterManager
 {
