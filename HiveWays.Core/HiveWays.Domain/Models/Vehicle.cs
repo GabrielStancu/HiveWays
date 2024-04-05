@@ -1,11 +1,16 @@
-﻿namespace HiveWays.Domain.Models;
+﻿using System.Text.Json.Serialization;
+
+namespace HiveWays.Domain.Models;
 
 public class Vehicle
 {
     public int Id { get; set; }
     public List<VehicleInfo> Info { get; set; }
+
+    [JsonIgnore]
     public bool IsAssignedToCluster { get; set; }
 
+    [JsonIgnore]
     public VehicleInfo MedianInfo => Info?[Info.Count/2];
 }
 

@@ -1,4 +1,5 @@
 ﻿using HiveWays.Domain.Models;
+using HiveWays.FleetIntegration.Business.Configuration;
 using HiveWays.FleetIntegration.Business.Interfaces;
 
 namespace HiveWays.FleetIntegration.Business;

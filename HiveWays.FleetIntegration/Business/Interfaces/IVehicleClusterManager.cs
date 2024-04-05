@@ -4,5 +4,5 @@ namespace HiveWays.FleetIntegration.Business.Interfaces;
 
 public interface IVehicleClusterManager
 {
-    Task<List<Cluster>> ClusterVehiclesAsync(List<Vehicle> vehicles);
+    List<Cluster> ClusterVehicles(List<Vehicle> vehicles);
 }

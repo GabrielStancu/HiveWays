@@ -1,4 +1,5 @@
 ﻿using HiveWays.Domain.Models;
+using HiveWays.FleetIntegration.Business.Configuration;
 using HiveWays.FleetIntegration.Business.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -11,7 +12,7 @@ public class VehicleClusterManager : IVehicleClusterManager
     private readonly ClusterConfiguration _clusterConfiguration;
     private readonly ILogger<VehicleClusterManager> _logger;
 
-    private List<Cluster> _clusters = new(); // We should write and get these from the cache; when writing to cache, map Vehicles to VehicleInfo, compute averages in new class for cached cluster
+    private List<Cluster> _clusters = new();
     private int _id;
 
     public VehicleClusterManager(IDistanceCalculator distanceCalculator,
@@ -25,7 +26,7 @@ public class VehicleClusterManager : IVehicleClusterManager
         _logger = logger;
     }
 
-    public async Task<List<Cluster>> ClusterVehiclesAsync(List<Vehicle> vehicles)
+    public List<Cluster> ClusterVehicles(List<Vehicle> vehicles)
     {
         if (!_clusters.Any())
         {
@@ -73,6 +74,9 @@ public class VehicleClusterManager : IVehicleClusterManager
 
     private void AssignNearbyVehiclesToCluster(Cluster cluster, Vehicle clusterHead, List<Vehicle> vehicles)
     {
+        if (cluster.Vehicles.Count > _clusterConfiguration.MaxVehicles)
+            return;
+
         var nearbyVehicles = FindNearbyVehicles(clusterHead, vehicles);
 
         foreach (var nearbyVehicle in nearbyVehicles)
@@ -114,7 +118,13 @@ public class VehicleClusterManager : IVehicleClusterManager
         {
             _logger.LogWarning("Vehicle {VehicleId} from {ClusterId} not found in incoming vehicles", vehicle.Id,
                 cluster.Id);
+
             cluster.RemoveVehicle(vehicle.Id);
+            if (cluster.Center is null || !cluster.Vehicles.Any())
+            {
+                _clusters.Remove(cluster);
+            }
+
             return;
         }
 
@@ -123,6 +133,10 @@ public class VehicleClusterManager : IVehicleClusterManager
         if (distanceToCenter > _clusterConfiguration.ClusterRadius)
         {
             cluster.RemoveVehicle(incomingVehicle.Id);
+            if (cluster.Center is null || !cluster.Vehicles.Any())
+            {
+                _clusters.Remove(cluster);
+            }
 
             var suitableCluster = FindSuitableCluster(incomingVehicle, vehicles);
             if (suitableCluster != null)
@@ -150,6 +164,11 @@ public class VehicleClusterManager : IVehicleClusterManager
             if (!_directionCalculator.IsSameDirection(clusterHead, incomingVehicle))
             {
                 cluster.RemoveVehicle(incomingVehicle.Id);
+                if (cluster.Center is null || !cluster.Vehicles.Any())
+                {
+                    _clusters.Remove(cluster);
+                }
+
                 var suitableCluster = FindSuitableCluster(incomingVehicle, vehicles);
 
                 if (suitableCluster != null)
@@ -172,6 +191,9 @@ public class VehicleClusterManager : IVehicleClusterManager
 
         foreach (var cluster in _clusters)
         {
+            if (cluster.Vehicles.Count >= _clusterConfiguration.MaxVehicles)
+                continue;
+
             var distanceToCenter = _distanceCalculator.Distance(cluster.Center, vehicle.MedianInfo.Location);
             var clusterHead = vehicles
                 .FirstOrDefault(v => cluster.Vehicles

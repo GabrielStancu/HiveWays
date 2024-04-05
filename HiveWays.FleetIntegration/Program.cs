@@ -1,6 +1,7 @@
 using HiveWays.Business.Extensions;
 using HiveWays.Business.RedisClient;
 using HiveWays.FleetIntegration.Business;
+using HiveWays.FleetIntegration.Business.Configuration;
 using HiveWays.FleetIntegration.Business.Interfaces;
 using HiveWays.Infrastructure.Clients;
 using Microsoft.Azure.Functions.Worker;
@@ -14,11 +15,14 @@ var host = new HostBuilder()
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
         services.AddSingleton(typeof(IRedisClient<>), typeof(RedisClient<>));
+        services.AddSingleton(typeof(IRedisClient<>), typeof(RedisClient<>));
         services.AddSingleton<IVehicleClusterManager, VehicleClusterManager>();
         services.AddSingleton<IDirectionCalculator, DirectionCalculator>();
         services.AddSingleton<IDistanceCalculator, DistanceCalculator>();
+        services.AddSingleton<ICongestionCalculator, CongestionCalculator>();
         services.AddConfiguration<RedisConfiguration>("VehicleStats");
         services.AddConfiguration<ClusterConfiguration>("Cluster");
+        services.AddConfiguration<CongestionConfiguration>("Congestion");
     })
     .Build();
 
