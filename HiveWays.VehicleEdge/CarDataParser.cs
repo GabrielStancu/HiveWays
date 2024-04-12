@@ -1,5 +1,6 @@
 using HiveWays.Business.Extensions;
 using HiveWays.Business.ServiceBusClient;
+using HiveWays.Domain.Models;
 using HiveWays.Infrastructure.Factories;
 using HiveWays.VehicleEdge.CarDataCsvParser;
 using HiveWays.VehicleEdge.Configuration;
@@ -35,9 +36,16 @@ public class CarDataParser
             _logger.LogInformation("Parsing file {File}", file);
             var dataPoints = _csvParser.ParseCsv(stream);
 
-            foreach (var dataPointsBatch in dataPoints.Batch(_deviceInfoConfiguration.BatchSize))
+            foreach (var dataPointsBatched in dataPoints.Batch(_deviceInfoConfiguration.BatchSize))
             {
-                _logger.LogInformation("Sending data point to service bus");
+                _logger.LogInformation("Sending data points batch to service bus");
+
+                var dataPointsBatch = new DataPointsBatch
+                {
+                    BatchDescriptor = file,
+                    DataPoints = dataPointsBatched
+                };
+
                 await _senderClient.SendMessageAsync(dataPointsBatch);
             }
         }

@@ -14,7 +14,7 @@ public static class ItemsDataGenerator
 
         var random = new Random();
 
-        for (int i = 1; i <= 3000; i++)
+        for (int i = 1; i <= 50000; i++)
         {
             var objectType = GetObjectType(i);
             BaseDevice obj;
@@ -27,7 +27,7 @@ public static class ItemsDataGenerator
                     {
                         Brand = brand,
                         Model = carModels[brand][random.Next(carModels[brand].Length)],
-                        FabricationYear = Math.Max(random.NextGaussian(2011, 4), DateTime.UtcNow.Year),
+                        FabricationYear = Math.Min(random.NextGaussian(2011, 4), DateTime.UtcNow.Year),
                         Range = Math.Max(0, random.NextGaussian(175000, 30000)),
                         FuelType = GetFuelType(i)
                     };
@@ -51,18 +51,12 @@ public static class ItemsDataGenerator
 
     static ObjectType GetObjectType(int carExternalId)
     {
-        if (carExternalId is >= 50 and <= 99)
+        return carExternalId switch
         {
-            return ObjectType.Obstacle;
-        }
-        else if (carExternalId is >= 100 and <= 149)
-        {
-            return ObjectType.TrafficLight;
-        }
-        else
-        {
-            return ObjectType.Car;
-        }
+            >= 50 and <= 99 => ObjectType.Obstacle,
+            >= 100 and <= 149 => ObjectType.TrafficLight,
+            _ => ObjectType.Car
+        };
     }
 
     static FuelType GetFuelType(int carExternalId)

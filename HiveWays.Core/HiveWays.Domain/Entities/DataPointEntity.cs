@@ -7,6 +7,7 @@ public class DataPointEntity : ITableEntity
 {
     public string PartitionKey { get; set; }
     public string RowKey { get; set; }
+    public int RoadId { get; set; }
     public double Longitude { get; set; }
     public double Latitude { get; set; }
     public double SpeedMps { get; set; }

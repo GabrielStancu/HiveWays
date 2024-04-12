@@ -36,7 +36,7 @@ public class ClusterVehicles
 
         _logger.LogInformation("Clustering vehicles: {VehiclesToCluster}", JsonSerializer.Serialize(vehicles.Select(v => v.Id)));
 
-        var clusters = await _vehicleClusterManager.ClusterVehiclesAsync(vehicles);
+        var clusters = _vehicleClusterManager.ClusterVehicles(vehicles);
         _logger.LogInformation("Found clusters: {VehicleClusters}", JsonSerializer.Serialize(clusters));
 
         var congestedClusters = _congestionCalculator.ComputeCongestedClusters(clusters);

@@ -11,7 +11,6 @@ public class CarDataCsvParser : ICarDataCsvParser
     {
         var config = new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            NewLine = Environment.NewLine,
             IgnoreBlankLines = true,
             HasHeaderRecord = true
         };

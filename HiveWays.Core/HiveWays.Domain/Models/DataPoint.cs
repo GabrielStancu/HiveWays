@@ -5,7 +5,7 @@ namespace HiveWays.Domain.Models;
 public class DataPoint : IIdentifiable
 {
     [Name("#time")]
-    public int TimeOffsetSeconds { get; set; }
+    public double TimeOffsetSeconds { get; set; }
 
     [Name("id")]
     public int Id { get; set; }

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using HiveWays.Business.RedisClient;
 using HiveWays.Business.TableStorageClient;
 using HiveWays.Domain.Entities;
@@ -19,8 +20,9 @@ public class DataIngestionOrchestrator
     private readonly IRedisClient<VehicleStats> _redisClient;
     private readonly IngestionConfiguration _ingestionConfiguration;
     private readonly ILogger<DataIngestionOrchestrator> _logger;
-    
-    private readonly DateTime _timeReference;
+
+    private int _roadId;
+    private DateTime _referenceTimestamp;
 
     public DataIngestionOrchestrator(
         IDataPointValidator dataPointValidator,
@@ -34,14 +36,13 @@ public class DataIngestionOrchestrator
         _redisClient = redisClient;
         _ingestionConfiguration = ingestionConfiguration;
         _logger = logger;
-        _timeReference = DateTime.UtcNow;
     }
 
     [Function(nameof(DataIngestionOrchestrator))]
     public async Task RunOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
     {
-        var inputDataPoints = context.GetInput<IEnumerable<DataPoint>>().ToList();
-        var validDataPoints = await ValidateDataPointsAsync(context, inputDataPoints);
+        var dataPointsBatch = context.GetInput<DataPointsBatch>();
+        var validDataPoints = await ValidateDataPointsBatchAsync(context, dataPointsBatch);
 
         var vehicleStats = MapDataPointsToVehicleStats(validDataPoints);
         await context.CallActivityAsync(nameof(StoreVehicleStats), vehicleStats);
@@ -50,13 +51,15 @@ public class DataIngestionOrchestrator
         await context.CallActivityAsync(nameof(StoreHistoricalData), validDataPointEntities);
     }
 
-    private async Task<List<DataPoint>> ValidateDataPointsAsync(TaskOrchestrationContext context, List<DataPoint> inputDataPoints)
+    private async Task<List<DataPoint>> ValidateDataPointsBatchAsync(TaskOrchestrationContext context, DataPointsBatch dataPointsBatch)
     {
-        var validationResults = await context.CallActivityAsync<IEnumerable<ValidatedDataPoint>>(nameof(ValidateDataPoints), inputDataPoints);
+        var validationResults = await context.CallActivityAsync<IEnumerable<ValidatedDataPoint>>(nameof(ValidateDataPoints), dataPointsBatch.DataPoints);
         var validDataPoints = validationResults
             .Where(vr => vr.IsValid)
             .Select(vr => vr.DataPoint)
             .ToList();
+
+        ParseBatchDescriptor(dataPointsBatch.BatchDescriptor);
 
         return validDataPoints;
     }
@@ -78,17 +81,17 @@ public class DataIngestionOrchestrator
     }
 
     [Function(nameof(EnrichDataPoints))]
-    public IEnumerable<DataPointEntity> EnrichDataPoints([ActivityTrigger] IEnumerable<DataPoint> dataPoints)
+    public IEnumerable<DataPointEntity> EnrichDataPoints([ActivityTrigger] DataPointsBatch dataPointsBatch)
     {
         var entities = new List<DataPointEntity>();
 
-        Parallel.ForEach(dataPoints, dataPoint =>
+        Parallel.ForEach(dataPointsBatch.DataPoints, dataPoint =>
         {
             var dataPointEntity = new DataPointEntity
             {
                 PartitionKey = dataPoint.Id.ToString(),
-                RowKey = _timeReference.AddSeconds(dataPoint.TimeOffsetSeconds)
-                    .ToString("o"), // TODO: make the simulator generate timestamps properly
+                RowKey = _referenceTimestamp.AddSeconds(dataPoint.TimeOffsetSeconds).ToString("o"),
+                RoadId = _roadId,
                 SpeedMps = dataPoint.Speed,
                 SpeedKmph = dataPoint.Speed * 3.6,
                 AccelerationMps = dataPoint.Acceleration,
@@ -138,12 +141,33 @@ public class DataIngestionOrchestrator
         return dataPoints.Select(dp => new VehicleStats
         {
             Id = dp.Id,
-            Timestamp = _timeReference.AddSeconds(dp.TimeOffsetSeconds),
+            Timestamp = _referenceTimestamp.AddSeconds(dp.TimeOffsetSeconds),
+            RoadId = _roadId,
             Longitude = _ingestionConfiguration.ReferenceLongitude + dp.X,
             Latitude = _ingestionConfiguration.ReferenceLatitude + dp.Y,
             Heading = dp.Heading,
             SpeedKmph = dp.Speed,
             AccelerationKmph = dp.Acceleration
         });
+    }
+
+    private void ParseBatchDescriptor(string batchDescriptor)
+    {
+        var pattern = "road(.*)_time(.*).csv";
+        var match = Regex.Match(batchDescriptor, pattern);
+
+        if (!match.Success || match.Groups.Count < 3)
+        {
+            _logger.LogError("Could not parse batch descriptor {NotParsedBatchDescriptor}", batchDescriptor);
+            return;
+        }
+
+        var hasParsedRoadId = int.TryParse(match.Groups[1].ToString(), out _roadId);
+        var hasParsedTimestamp = DateTime.TryParse(match.Groups[2].ToString().Replace('-', '/').Replace('_', ':'), out _referenceTimestamp);
+
+        if (!hasParsedRoadId || !hasParsedTimestamp)
+        {
+            _logger.LogError("Could not parse road id {NotParsedRoadId} or reference time {NotParsedReferenceTime}", match.Groups[1].ToString(), match.Groups[2].ToString());
+        }
     }
 }
