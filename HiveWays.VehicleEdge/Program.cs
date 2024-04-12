@@ -17,6 +17,7 @@ var host = new HostBuilder()
         services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
         services.AddConfiguration<CarEventsServiceBusConfiguration>("CarEventsServiceBus");
         services.AddConfiguration<DeviceInfoConfiguration>("DeviceInfoBatching");
+        services.AddConfiguration<StorageAccountConfiguration>("StorageAccount");
     })
     .Build();
 
