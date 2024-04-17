@@ -21,9 +21,6 @@ public class DataIngestionOrchestrator
     private readonly IngestionConfiguration _ingestionConfiguration;
     private readonly ILogger<DataIngestionOrchestrator> _logger;
 
-    private int _roadId;
-    private DateTime _referenceTimestamp;
-
     public DataIngestionOrchestrator(
         IDataPointValidator dataPointValidator,
         ITableStorageClient<DataPointEntity> tableStorageClient,
@@ -42,16 +39,16 @@ public class DataIngestionOrchestrator
     public async Task RunOrchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
     {
         var dataPointsBatch = context.GetInput<DataPointsBatch>();
-        var validDataPoints = await ValidateDataPointsBatchAsync(context, dataPointsBatch);
+        var validDataPointsBatch = await ValidateDataPointsBatchAsync(context, dataPointsBatch);
 
-        var vehicleStats = MapDataPointsToVehicleStats(validDataPoints);
+        var vehicleStats = MapDataPointsToVehicleStats(validDataPointsBatch);
         await context.CallActivityAsync(nameof(StoreVehicleStats), vehicleStats);
 
-        var validDataPointEntities = await context.CallActivityAsync<IEnumerable<DataPointEntity>>(nameof(EnrichDataPoints), validDataPoints);
+        var validDataPointEntities = await context.CallActivityAsync<IEnumerable<DataPointEntity>>(nameof(EnrichDataPoints), validDataPointsBatch);
         await context.CallActivityAsync(nameof(StoreHistoricalData), validDataPointEntities);
     }
 
-    private async Task<List<DataPoint>> ValidateDataPointsBatchAsync(TaskOrchestrationContext context, DataPointsBatch dataPointsBatch)
+    private async Task<DataPointsBatch> ValidateDataPointsBatchAsync(TaskOrchestrationContext context, DataPointsBatch dataPointsBatch)
     {
         var validationResults = await context.CallActivityAsync<IEnumerable<ValidatedDataPoint>>(nameof(ValidateDataPoints), dataPointsBatch.DataPoints);
         var validDataPoints = validationResults
@@ -59,9 +56,11 @@ public class DataIngestionOrchestrator
             .Select(vr => vr.DataPoint)
             .ToList();
 
-        ParseBatchDescriptor(dataPointsBatch.BatchDescriptor);
-
-        return validDataPoints;
+        return new DataPointsBatch
+        {
+            DataPoints = validDataPoints,
+            BatchDescriptor = dataPointsBatch.BatchDescriptor
+        };
     }
 
     [Function(nameof(ValidateDataPoints))]
@@ -84,14 +83,15 @@ public class DataIngestionOrchestrator
     public IEnumerable<DataPointEntity> EnrichDataPoints([ActivityTrigger] DataPointsBatch dataPointsBatch)
     {
         var entities = new List<DataPointEntity>();
+        var (roadId, referenceTimestamp) = ParseBatchDescriptor(dataPointsBatch.BatchDescriptor);
 
         Parallel.ForEach(dataPointsBatch.DataPoints, dataPoint =>
         {
             var dataPointEntity = new DataPointEntity
             {
-                PartitionKey = dataPoint.Id.ToString(),
-                RowKey = _referenceTimestamp.AddSeconds(dataPoint.TimeOffsetSeconds).ToString("o"),
-                RoadId = _roadId,
+                PartitionKey = referenceTimestamp.AddSeconds(dataPoint.TimeOffsetSeconds).ToString("o"),
+                RowKey = dataPoint.Id.ToString(),
+                RoadId = roadId,
                 SpeedMps = dataPoint.Speed,
                 SpeedKmph = dataPoint.Speed * 3.6,
                 AccelerationMps = dataPoint.Acceleration,
@@ -109,15 +109,18 @@ public class DataIngestionOrchestrator
     [Function(nameof(StoreHistoricalData))]
     public async Task StoreHistoricalData([ActivityTrigger] IEnumerable<DataPointEntity> dataPointEntities)
     {
-        try
+        foreach (var entitiesPartitionGroup in dataPointEntities.GroupBy(e => e.PartitionKey))
         {
-            await _tableStorageClient.AddEntitiesBatchedAsync(dataPointEntities);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                "Exception while adding batch to table storage: {TableStorageAddException} @ {TableStorageAddStackTrace}",
-                ex.Message, ex.StackTrace);
+            try
+            {
+                await _tableStorageClient.AddEntitiesBatchedAsync(entitiesPartitionGroup);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    "Exception while adding batch to table storage: {TableStorageAddException} @ {TableStorageAddStackTrace}",
+                    ex.Message, ex.StackTrace);
+            }
         }
     }
 
@@ -136,13 +139,15 @@ public class DataIngestionOrchestrator
         }
     }
 
-    private IEnumerable<VehicleStats> MapDataPointsToVehicleStats(IEnumerable<DataPoint> dataPoints)
+    private IEnumerable<VehicleStats> MapDataPointsToVehicleStats(DataPointsBatch dataPointsBatch)
     {
-        return dataPoints.Select(dp => new VehicleStats
+        var (roadId, referenceTimestamp) = ParseBatchDescriptor(dataPointsBatch.BatchDescriptor);
+
+        return dataPointsBatch.DataPoints.Select(dp => new VehicleStats
         {
             Id = dp.Id,
-            Timestamp = _referenceTimestamp.AddSeconds(dp.TimeOffsetSeconds),
-            RoadId = _roadId,
+            Timestamp = referenceTimestamp.AddSeconds(dp.TimeOffsetSeconds),
+            RoadId = roadId,
             Longitude = _ingestionConfiguration.ReferenceLongitude + dp.X,
             Latitude = _ingestionConfiguration.ReferenceLatitude + dp.Y,
             Heading = dp.Heading,
@@ -151,7 +156,7 @@ public class DataIngestionOrchestrator
         });
     }
 
-    private void ParseBatchDescriptor(string batchDescriptor)
+    private (int RoadId, DateTime ReferenceTimestamp) ParseBatchDescriptor(string batchDescriptor)
     {
         var pattern = "road(.*)_time(.*).csv";
         var match = Regex.Match(batchDescriptor, pattern);
@@ -159,15 +164,18 @@ public class DataIngestionOrchestrator
         if (!match.Success || match.Groups.Count < 3)
         {
             _logger.LogError("Could not parse batch descriptor {NotParsedBatchDescriptor}", batchDescriptor);
-            return;
+            return (-1, DateTime.MinValue);
         }
 
-        var hasParsedRoadId = int.TryParse(match.Groups[1].ToString(), out _roadId);
-        var hasParsedTimestamp = DateTime.TryParse(match.Groups[2].ToString().Replace('-', '/').Replace('_', ':'), out _referenceTimestamp);
+        var hasParsedRoadId = int.TryParse(match.Groups[1].ToString(), out var roadId);
+        var hasParsedTimestamp = DateTime.TryParse(match.Groups[2].ToString().Replace('-', '/').Replace('_', ':'), out var referenceTimestamp);
 
         if (!hasParsedRoadId || !hasParsedTimestamp)
         {
             _logger.LogError("Could not parse road id {NotParsedRoadId} or reference time {NotParsedReferenceTime}", match.Groups[1].ToString(), match.Groups[2].ToString());
+            return (-1, DateTime.MinValue);
         }
+
+        return (roadId, referenceTimestamp);
     }
 }
