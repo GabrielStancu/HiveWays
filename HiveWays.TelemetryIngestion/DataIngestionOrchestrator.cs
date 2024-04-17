@@ -5,7 +5,6 @@ using HiveWays.Business.TableStorageClient;
 using HiveWays.Domain.Entities;
 using HiveWays.Domain.Models;
 using HiveWays.TelemetryIngestion.Business;
-using HiveWays.TelemetryIngestion.Configuration;
 using HiveWays.TelemetryIngestion.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
@@ -18,20 +17,17 @@ public class DataIngestionOrchestrator
     private readonly IDataPointValidator _dataPointValidator;
     private readonly ITableStorageClient<DataPointEntity> _tableStorageClient;
     private readonly IRedisClient<VehicleStats> _redisClient;
-    private readonly IngestionConfiguration _ingestionConfiguration;
     private readonly ILogger<DataIngestionOrchestrator> _logger;
 
     public DataIngestionOrchestrator(
         IDataPointValidator dataPointValidator,
         ITableStorageClient<DataPointEntity> tableStorageClient,
         IRedisClient<VehicleStats> redisClient,
-        IngestionConfiguration ingestionConfiguration,
         ILogger<DataIngestionOrchestrator> logger)
     {
         _dataPointValidator = dataPointValidator;
         _tableStorageClient = tableStorageClient;
         _redisClient = redisClient;
-        _ingestionConfiguration = ingestionConfiguration;
         _logger = logger;
     }
 
@@ -96,8 +92,8 @@ public class DataIngestionOrchestrator
                 SpeedKmph = dataPoint.Speed * 3.6,
                 AccelerationMps = dataPoint.Acceleration,
                 AccelerationKmph = dataPoint.Acceleration * 12960,
-                Latitude = _ingestionConfiguration.ReferenceLatitude + dataPoint.Y,
-                Longitude = _ingestionConfiguration.ReferenceLongitude + dataPoint.X,
+                Latitude = dataPoint.Y,
+                Longitude = dataPoint.X,
                 Heading = dataPoint.Heading
             };
             entities.Add(dataPointEntity);
@@ -148,8 +144,8 @@ public class DataIngestionOrchestrator
             Id = dp.Id,
             Timestamp = referenceTimestamp.AddSeconds(dp.TimeOffsetSeconds),
             RoadId = roadId,
-            Longitude = _ingestionConfiguration.ReferenceLongitude + dp.X,
-            Latitude = _ingestionConfiguration.ReferenceLatitude + dp.Y,
+            Longitude = dp.X,
+            Latitude = dp.Y,
             Heading = dp.Heading,
             SpeedKmph = dp.Speed,
             AccelerationKmph = dp.Acceleration

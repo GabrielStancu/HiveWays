@@ -6,6 +6,4 @@ public class IngestionConfiguration
     public int MaxId { get; set; }
     public int MinSpeed { get; set; }
     public int MaxSpeed { get; set; }
-    public double ReferenceLatitude { get; set; }
-    public double ReferenceLongitude { get; set; }
 }
