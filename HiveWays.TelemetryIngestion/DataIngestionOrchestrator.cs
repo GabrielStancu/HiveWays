@@ -172,6 +172,6 @@ public class DataIngestionOrchestrator
             return (-1, DateTime.MinValue);
         }
 
-        return (roadId, referenceTimestamp);
+        return (roadId, referenceTimestamp.ToUniversalTime());
     }
 }

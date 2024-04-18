@@ -6,4 +6,5 @@ public interface IRedisClient<T> where T : IIdentifiable
 {
     Task StoreElementsAsync(IEnumerable<T> elements);
     Task<IEnumerable<T>> GetElementsAsync();
+    Task DeleteKeyAsync(int id);
 }

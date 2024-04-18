@@ -52,6 +52,14 @@ public class RedisClient<T> : IRedisClient<T> where T : IIdentifiable
         return elements;
     }
 
+    public async Task DeleteKeyAsync(int id)
+    {
+        InitDatabase();
+
+        var redisKey = new RedisKey(id.ToString());
+        await _database.KeyDeleteAsync(redisKey);
+    }
+
     private void InitDatabase()
     {
         if (_database != null)

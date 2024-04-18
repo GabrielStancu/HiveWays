@@ -39,6 +39,8 @@ public class DirectionCalculator : IDirectionCalculator
         if (info.Count < 2)
             return directionVector;
 
+        info = info.OrderBy(i => i.Timestamp).ToList();
+
         double latitudeDiff = info[1].Location.Latitude - info[0].Location.Latitude;
         double longitudeDiff = info[1].Location.Longitude - info[0].Location.Longitude;
 
