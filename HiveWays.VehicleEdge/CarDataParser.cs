@@ -11,12 +11,12 @@ namespace HiveWays.VehicleEdge;
 
 public class CarDataParser
 {
-    private readonly ICarDataCsvParser _csvParser;
+    private readonly ICarDataCsvParser<DataPoint> _csvParser;
     private readonly DeviceInfoConfiguration _deviceInfoConfiguration;
     private readonly IServiceBusSenderClient _senderClient;
     private readonly ILogger<CarDataParser> _logger;
 
-    public CarDataParser(ICarDataCsvParser csvParser,
+    public CarDataParser(ICarDataCsvParser<DataPoint> csvParser,
         IServiceBusSenderFactory senderFactory,
         CarEventsServiceBusConfiguration serviceBusConfiguration,
         DeviceInfoConfiguration deviceInfoConfiguration,

@@ -60,6 +60,6 @@ public class CongestionCalculator : ICongestionCalculator
         return vehiclesCount >= _congestionConfiguration.MinVehicles &&
                (averageSpeed < _congestionConfiguration.MinSpeed ||
                density > _congestionConfiguration.MaxDensity ||
-               totalAcceleration / totalInfoPoints > _congestionConfiguration.MaxAcceleration);
+               totalAcceleration / totalInfoPoints < _congestionConfiguration.MinAcceleration);
     }
 }

@@ -7,7 +7,7 @@ namespace HiveWays.FleetIntegration.Business;
 public class DistanceCalculator : IDistanceCalculator
 {
     private readonly ClusterConfiguration _clusterConfiguration;
-    private const double EarthRadiusKm = 6371.0;
+    private const double EarthRadiusMeters = 6371000.0;
 
     public DistanceCalculator(ClusterConfiguration clusterConfiguration)
     {
@@ -28,8 +28,9 @@ public class DistanceCalculator : IDistanceCalculator
                    Math.Sin(distanceLon / 2) * Math.Sin(distanceLon / 2);
 
         double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        double distance = EarthRadiusMeters * c;
 
-        return EarthRadiusKm * c;
+        return distance;
     }
 
     private static double ToRadians(double degrees)

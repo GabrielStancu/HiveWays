@@ -18,7 +18,8 @@ public class DirectionCalculator : IDirectionCalculator
         var clusterHeadMedian = clusterHead.MedianInfo;
         var nearbyVehicleMedian = nearbyVehicle.MedianInfo;
 
-        if (clusterHeadMedian == null || nearbyVehicleMedian == null)
+        if (clusterHeadMedian == null || nearbyVehicleMedian == null ||
+            clusterHeadMedian.RoadId != nearbyVehicleMedian.RoadId)
         {
             return false;
         }
@@ -39,10 +40,8 @@ public class DirectionCalculator : IDirectionCalculator
         if (info.Count < 2)
             return directionVector;
 
-        info = info.OrderBy(i => i.Timestamp).ToList();
-
-        double latitudeDiff = info[1].Location.Latitude - info[0].Location.Latitude;
-        double longitudeDiff = info[1].Location.Longitude - info[0].Location.Longitude;
+        double latitudeDiff = info[0].Location.Latitude - info[1].Location.Latitude;
+        double longitudeDiff = info[0].Location.Longitude - info[1].Location.Longitude;
 
         directionVector[0] = latitudeDiff;
         directionVector[1] = longitudeDiff;

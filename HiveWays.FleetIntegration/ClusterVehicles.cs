@@ -47,7 +47,7 @@ public class ClusterVehicles
         new()
         {
             Id = g.Key,
-            Info = g.Select(s => new VehicleInfo
+            UnorderedInfo = g.Select(s => new VehicleInfo
             {
                 Location = new GeoPoint
                 {
@@ -57,7 +57,8 @@ public class ClusterVehicles
                 Heading = s.Heading,
                 AccelerationKmph = s.AccelerationKmph,
                 SpeedKmph = s.SpeedKmph,
-                Timestamp = s.Timestamp
+                Timestamp = s.Timestamp,
+                RoadId = s.RoadId
             }).ToList()
         };
 }

@@ -13,7 +13,7 @@ var host = new HostBuilder()
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
 
-        services.AddScoped<ICarDataCsvParser, CarDataCsvParser>();
+        services.AddScoped(typeof(ICarDataCsvParser<>), typeof(CarDataCsvParser<>));
         services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
         services.AddConfiguration<CarEventsServiceBusConfiguration>("CarEventsServiceBus");
         services.AddConfiguration<DeviceInfoConfiguration>("DeviceInfoBatching");

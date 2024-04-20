@@ -1,8 +1,6 @@
-﻿using HiveWays.Domain.Models;
+﻿namespace HiveWays.VehicleEdge.CarDataCsvParser;
 
-namespace HiveWays.VehicleEdge.CarDataCsvParser;
-
-public interface ICarDataCsvParser
+public interface ICarDataCsvParser<T>
 {
-    List<DataPoint> ParseCsv(Stream stream);
+    List<T> ParseCsv(Stream stream);
 }
