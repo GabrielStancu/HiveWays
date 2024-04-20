@@ -1,5 +1,8 @@
 using HiveWays.Business.Extensions;
 using HiveWays.Business.RedisClient;
+using HiveWays.Business.TableStorageClient;
+using HiveWays.Domain.Entities;
+using HiveWays.Domain.Models;
 using HiveWays.FleetIntegration.Business;
 using HiveWays.FleetIntegration.Business.Configuration;
 using HiveWays.FleetIntegration.Business.Interfaces;
@@ -14,8 +17,8 @@ var host = new HostBuilder()
     {
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
-        services.AddSingleton(typeof(IRedisClient<>), typeof(RedisClient<>));
-        services.AddSingleton(typeof(IRedisClient<>), typeof(RedisClient<>));
+        services.AddSingleton<IRedisClient<VehicleStats>, RedisClient<VehicleStats>>();
+        services.AddSingleton<ITableStorageClient<DataPointEntity>, TableStorageClient<DataPointEntity>>();
         services.AddSingleton<IVehicleClusterManager, VehicleClusterManager>();
         services.AddSingleton<IDirectionCalculator, DirectionCalculator>();
         services.AddSingleton<IDistanceCalculator, DistanceCalculator>();
@@ -23,6 +26,8 @@ var host = new HostBuilder()
         services.AddConfiguration<RedisConfiguration>("VehicleStats");
         services.AddConfiguration<ClusterConfiguration>("Cluster");
         services.AddConfiguration<CongestionConfiguration>("Congestion");
+        services.AddConfiguration<TableStorageConfiguration>("StorageAccount");
+        services.AddConfiguration<CleanupConfiguration>("Cleanup");
     })
     .Build();
 

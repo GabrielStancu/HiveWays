@@ -26,7 +26,7 @@ public class ClusterVehicles
     }
 
     [Function(nameof(ClusterVehicles))]
-    public async Task Run([TimerTrigger("* */1 * * * *")] TimerInfo myTimer)
+    public async Task Run([TimerTrigger("* * * * * *")] TimerInfo myTimer)
     {
         var vehicleStatsSets = await _redisClient.GetElementsAsync();
         var vehicles = vehicleStatsSets

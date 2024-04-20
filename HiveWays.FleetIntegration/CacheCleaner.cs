@@ -1,5 +1,6 @@
 using HiveWays.Business.RedisClient;
 using HiveWays.Domain.Models;
+using HiveWays.FleetIntegration.Business.Configuration;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -9,20 +10,29 @@ public class CacheCleaner
 {
     private readonly IRedisClient<VehicleStats> _redisClient;
     private readonly RedisConfiguration _redisConfiguration;
+    private readonly CleanupConfiguration _cleanupConfiguration;
     private readonly ILogger _logger;
 
     public CacheCleaner(IRedisClient<VehicleStats> redisClient,
         RedisConfiguration redisConfiguration,
+        CleanupConfiguration cleanupConfiguration,
         ILogger<CacheCleaner> logger)
     {
         _redisClient = redisClient;
         _redisConfiguration = redisConfiguration;
+        _cleanupConfiguration = cleanupConfiguration;
         _logger = logger;
     }
 
     [Function("CacheCleaner")]
-    public async Task Run([TimerTrigger("* */1 * * * *")] TimerInfo myTimer)
+    public async Task Run([TimerTrigger("* * * * * *")] TimerInfo myTimer)
     {
+        if (_cleanupConfiguration.DisabledCacheCleanup)
+        {
+            _logger.LogInformation("Cache cleanup is disabled, returning...");
+            return;
+        }
+
         try
         {
             var vehicleStats = await _redisClient.GetElementsAsync();

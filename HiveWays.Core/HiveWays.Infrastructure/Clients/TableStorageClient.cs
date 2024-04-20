@@ -1,4 +1,5 @@
 ﻿using Azure.Data.Tables;
+using HiveWays.Business.Extensions;
 using HiveWays.Business.TableStorageClient;
 using Microsoft.Extensions.Logging;
 
@@ -44,6 +45,55 @@ public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITa
         }
     }
 
+    public async Task RemoveOldEntitiesAsync()
+    {
+        await InitTableClientAsync();
+
+        var entities = await GetOldTableEntitiesAsync();
+
+        foreach (var entityGroup in entities.GroupBy(e => e.PartitionKey))
+        {
+            foreach (var entitiesBatch in entityGroup.Batch(_configuration.BatchSize))
+            {
+                await DeleteEntitiesBatchASync(entitiesBatch);
+            }
+        }
+    }
+
+    private async Task<List<T>> GetOldTableEntitiesAsync()
+    {
+        var entities = new List<T>();
+        var timestamp = DateTime.UtcNow.AddSeconds(-1 * _configuration.Ttl);
+        var oldEntities = _tableClient.QueryAsync<T>(e => e.Timestamp < timestamp);
+
+        await foreach (var oldEntity in oldEntities)
+        {
+            entities.Add(oldEntity);
+        }
+
+        return entities;
+    }
+
+    private async Task DeleteEntitiesBatchASync(IEnumerable<T> entitiesBatch)
+    {
+        var transactionBatch = new List<TableTransactionAction>();
+
+        foreach (var entity in entitiesBatch.Where(e => e != null))
+        {
+            transactionBatch.Add(new TableTransactionAction(TableTransactionActionType.Delete, entity));
+        }
+
+        try
+        {
+            await _tableClient.SubmitTransactionAsync(transactionBatch);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                "Error while deleting from table storage. Exception: {TableStorageException} @ {TableStorageExceptionStackTrace}",
+                ex.Message, ex.StackTrace);
+        }
+    }
 
     private async Task InitTableClientAsync()
     {
