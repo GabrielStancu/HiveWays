@@ -41,7 +41,7 @@ public class CongestionCalculator : ICongestionCalculator
 
         foreach (var vehicle in cluster.Vehicles)
         {
-            foreach (var info in vehicle.Info)
+            foreach (var info in vehicle.Info.OrderBy(i => i.Timestamp))
             {
                 averageSpeed += info.SpeedKmph;
                 totalAcceleration += Math.Abs(info.AccelerationKmph);

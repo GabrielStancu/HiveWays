@@ -5,18 +5,15 @@ namespace HiveWays.Domain.Models;
 public class Vehicle
 {
     public int Id { get; set; }
-    public List<VehicleInfo> Info => UnorderedInfo
-        .OrderBy(i => i.Timestamp)
-        .ToList();
-
-    [JsonIgnore]
-    public List<VehicleInfo> UnorderedInfo { get; set; }
+    public List<VehicleInfo> Info { get; set; }
 
     [JsonIgnore]
     public bool IsAssignedToCluster { get; set; }
 
     [JsonIgnore]
-    public VehicleInfo MedianInfo => Info?[Info.Count/2];
+    public VehicleInfo MedianInfo => Info?
+        .OrderBy(i => i.Timestamp)
+        .ToList()[Info.Count/2];
 }
 
 public class VehicleInfo

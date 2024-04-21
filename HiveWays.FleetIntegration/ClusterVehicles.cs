@@ -1,7 +1,11 @@
 using System.Text.Json;
 using HiveWays.Business.RedisClient;
+using HiveWays.Business.ServiceBusClient;
 using HiveWays.Domain.Models;
+using HiveWays.FleetIntegration.Business.Configuration;
 using HiveWays.FleetIntegration.Business.Interfaces;
+using HiveWays.FleetIntegration.Models;
+using HiveWays.Infrastructure.Factories;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -12,16 +16,20 @@ public class ClusterVehicles
     private readonly IRedisClient<VehicleStats> _redisClient;
     private readonly IVehicleClusterManager _vehicleClusterManager;
     private readonly ICongestionCalculator _congestionCalculator;
+    private readonly IServiceBusSenderClient _sbClient;
     private readonly ILogger<ClusterVehicles> _logger;
 
     public ClusterVehicles(IRedisClient<VehicleStats> redisClient,
         IVehicleClusterManager vehicleClusterManager,
         ICongestionCalculator congestionCalculator,
+        IServiceBusSenderFactory serviceBusSenderFactory,
+        CongestionQueueConfiguration congestionQueueConfiguration,
         ILogger<ClusterVehicles> logger)
     {
         _redisClient = redisClient;
         _vehicleClusterManager = vehicleClusterManager;
         _congestionCalculator = congestionCalculator;
+        _sbClient = serviceBusSenderFactory.GetServiceBusSenderClient(congestionQueueConfiguration.ConnectionString, congestionQueueConfiguration.QueueName);
         _logger = logger;
     }
 
@@ -39,15 +47,30 @@ public class ClusterVehicles
         var clusters = _vehicleClusterManager.ClusterVehicles(vehicles);
         _logger.LogInformation("Found clusters: {VehicleClusters}", JsonSerializer.Serialize(clusters));
 
-        var congestedClusters = _congestionCalculator.ComputeCongestedClusters(clusters);
-        _logger.LogInformation("Found congested clusters: {VehicleClusters}", JsonSerializer.Serialize(congestedClusters));
+        var congestedClusters = _congestionCalculator
+            .ComputeCongestedClusters(clusters)
+            .ToList();
+
+        _logger.LogInformation("Found congested clusters: [{VehicleClusters}]", congestedClusters.Select(c => c.Id));
+
+        var congestedVehicles = congestedClusters
+            .SelectMany(c => c.Vehicles.Select(v => new CongestedVehicle
+            {
+                Id = v.Id,
+                VehicleInfo = v.MedianInfo
+            }))
+            .ToList();
+
+        _logger.LogInformation("Sending congestion data to traffic balancer {SentVehicleIds}", congestedVehicles.Select(v => v.Id));
+
+        await _sbClient.SendMessageAsync(congestedVehicles);
     }
 
     private static Vehicle MapStatsToVehicle(IGrouping<int, VehicleStats> g) =>
         new()
         {
             Id = g.Key,
-            UnorderedInfo = g.Select(s => new VehicleInfo
+            Info = g.Select(s => new VehicleInfo
             {
                 Location = new GeoPoint
                 {
@@ -59,6 +82,8 @@ public class ClusterVehicles
                 SpeedKmph = s.SpeedKmph,
                 Timestamp = s.Timestamp,
                 RoadId = s.RoadId
-            }).ToList()
+            })
+            .OrderBy(i => i.Timestamp)
+            .ToList()
         };
 }

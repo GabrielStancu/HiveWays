@@ -24,8 +24,8 @@ public class DirectionCalculator : IDirectionCalculator
             return false;
         }
 
-        var clusterHeadDirection = ComputeDirectionVector(clusterHead.Info);
-        var nearbyVehicleDirection = ComputeDirectionVector(nearbyVehicle.Info);
+        var clusterHeadDirection = ComputeDirectionVector(clusterHead.Info.OrderBy(i => i.Timestamp).ToList());
+        var nearbyVehicleDirection = ComputeDirectionVector(nearbyVehicle.Info.OrderBy(i => i.Timestamp).ToList());
         double dotProduct = DotProduct(clusterHeadDirection, nearbyVehicleDirection);
         double magnitudesProduct = Magnitude(clusterHeadDirection) * Magnitude(nearbyVehicleDirection);
         double angle = Math.Acos(dotProduct / magnitudesProduct) * (180 / Math.PI);
