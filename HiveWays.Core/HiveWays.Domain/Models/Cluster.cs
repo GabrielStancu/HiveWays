@@ -14,7 +14,7 @@ public class Cluster : IIdentifiable
     {
         Vehicles.Add(vehicle);
 
-        var medianLocation = vehicle.MedianInfo.Location;
+        var medianLocation = vehicle.MedianLocation.Location;
         
         if (Center is null)
         {
@@ -23,17 +23,17 @@ public class Cluster : IIdentifiable
                 Latitude = medianLocation.Latitude,
                 Longitude = medianLocation.Longitude
             };
-            AverageSpeed = vehicle.MedianInfo.SpeedKmph;
-            AverageAcceleration = vehicle.MedianInfo.AccelerationKmph;
-            AverageOrientation = vehicle.MedianInfo.Heading;
+            AverageSpeed = vehicle.MedianLocation.SpeedKmph;
+            AverageAcceleration = vehicle.MedianLocation.AccelerationKmph;
+            AverageOrientation = vehicle.MedianLocation.Heading;
         }
         else
         {
             Center.Latitude = RecomputeAverageAfterAdd(Center.Latitude, medianLocation.Latitude);
             Center.Longitude = RecomputeAverageAfterAdd(Center.Longitude, medianLocation.Longitude);
-            AverageSpeed = RecomputeAverageAfterAdd(AverageSpeed, vehicle.MedianInfo.SpeedKmph);
-            AverageAcceleration = RecomputeAverageAfterAdd(AverageAcceleration, vehicle.MedianInfo.AccelerationKmph);
-            AverageOrientation = RecomputeAverageAfterAdd(AverageOrientation, vehicle.MedianInfo.Heading);
+            AverageSpeed = RecomputeAverageAfterAdd(AverageSpeed, vehicle.MedianLocation.SpeedKmph);
+            AverageAcceleration = RecomputeAverageAfterAdd(AverageAcceleration, vehicle.MedianLocation.AccelerationKmph);
+            AverageOrientation = RecomputeAverageAfterAdd(AverageOrientation, vehicle.MedianLocation.Heading);
         }
     }
 
@@ -50,12 +50,12 @@ public class Cluster : IIdentifiable
             return;
         }
 
-        var medianLocation = vehicle.MedianInfo.Location;
+        var medianLocation = vehicle.MedianLocation.Location;
         Center.Latitude = RecomputeAverageAfterRemove(Center.Latitude, medianLocation.Latitude);
         Center.Longitude = RecomputeAverageAfterRemove(Center.Longitude, medianLocation.Longitude);
-        AverageSpeed = RecomputeAverageAfterRemove(AverageSpeed, vehicle.MedianInfo.SpeedKmph);
-        AverageAcceleration = RecomputeAverageAfterRemove(AverageAcceleration, vehicle.MedianInfo.AccelerationKmph);
-        AverageOrientation = RecomputeAverageAfterRemove(AverageOrientation, vehicle.MedianInfo.Heading);
+        AverageSpeed = RecomputeAverageAfterRemove(AverageSpeed, vehicle.MedianLocation.SpeedKmph);
+        AverageAcceleration = RecomputeAverageAfterRemove(AverageAcceleration, vehicle.MedianLocation.AccelerationKmph);
+        AverageOrientation = RecomputeAverageAfterRemove(AverageOrientation, vehicle.MedianLocation.Heading);
     }
 
     private double RecomputeAverageAfterAdd(double oldAverage, double addedValue)

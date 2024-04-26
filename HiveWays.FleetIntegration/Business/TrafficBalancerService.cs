@@ -39,7 +39,7 @@ public class TrafficBalancerService : ITrafficBalancerService
 
     private double CalculateCongestionLevel(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats, int roadId)
     {
-        var congestedVehiclesOnRoad = congestedVehicles.Where(cv => cv.VehicleInfo.RoadId == roadId).ToList();
+        var congestedVehiclesOnRoad = congestedVehicles.Where(cv => cv.VehicleLocation.RoadId == roadId).ToList();
         var vehicleStatsOnRoad = vehicleStats.Where(vs => vs.RoadId == roadId).ToList();
 
         double totalVehiclesCount = vehicleStatsOnRoad.Count;

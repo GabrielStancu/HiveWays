@@ -15,20 +15,20 @@ public class ClusterVehicles
 {
     private readonly IRedisClient<VehicleStats> _redisClient;
     private readonly IVehicleClusterManager _vehicleClusterManager;
-    private readonly ICongestionCalculator _congestionCalculator;
+    private readonly ICongestionDetector _congestionDetector;
     private readonly IServiceBusSenderClient _sbClient;
     private readonly ILogger<ClusterVehicles> _logger;
 
     public ClusterVehicles(IRedisClient<VehicleStats> redisClient,
         IVehicleClusterManager vehicleClusterManager,
-        ICongestionCalculator congestionCalculator,
+        ICongestionDetector congestionDetector,
         IServiceBusSenderFactory serviceBusSenderFactory,
         CongestionQueueConfiguration congestionQueueConfiguration,
         ILogger<ClusterVehicles> logger)
     {
         _redisClient = redisClient;
         _vehicleClusterManager = vehicleClusterManager;
-        _congestionCalculator = congestionCalculator;
+        _congestionDetector = congestionDetector;
         _sbClient = serviceBusSenderFactory.GetServiceBusSenderClient(congestionQueueConfiguration.ConnectionString, congestionQueueConfiguration.QueueName);
         _logger = logger;
     }
@@ -47,7 +47,7 @@ public class ClusterVehicles
         var clusters = _vehicleClusterManager.ClusterVehicles(vehicles);
         _logger.LogInformation("Found clusters: {VehicleClusters}", JsonSerializer.Serialize(clusters));
 
-        var congestedClusters = _congestionCalculator
+        var congestedClusters = _congestionDetector
             .ComputeCongestedClusters(clusters)
             .ToList();
 
@@ -57,7 +57,7 @@ public class ClusterVehicles
             .SelectMany(c => c.Vehicles.Select(v => new CongestedVehicle
             {
                 Id = v.Id,
-                VehicleInfo = v.MedianInfo
+                VehicleLocation = v.MedianLocation
             }))
             .ToList();
 
@@ -70,7 +70,7 @@ public class ClusterVehicles
         new()
         {
             Id = g.Key,
-            Info = g.Select(s => new VehicleInfo
+            Trajectory = g.Select(s => new VehicleLocation
             {
                 Location = new GeoPoint
                 {

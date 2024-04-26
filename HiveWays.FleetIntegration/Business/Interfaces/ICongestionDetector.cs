@@ -2,7 +2,7 @@
 
 namespace HiveWays.FleetIntegration.Business.Interfaces;
 
-public interface ICongestionCalculator
+public interface ICongestionDetector
 {
     IEnumerable<Cluster> ComputeCongestedClusters(IEnumerable<Cluster> clusters);
 }

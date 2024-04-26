@@ -23,7 +23,7 @@ var host = new HostBuilder()
         services.AddSingleton<IVehicleClusterManager, VehicleClusterManager>();
         services.AddSingleton<IDirectionCalculator, DirectionCalculator>();
         services.AddSingleton<IDistanceCalculator, DistanceCalculator>();
-        services.AddSingleton<ICongestionCalculator, CongestionCalculator>();
+        services.AddSingleton<ICongestionDetector, CongestionDetector>();
         services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
         services.AddSingleton<ITrafficBalancerService, TrafficBalancerService>();
         services.AddConfiguration<RedisConfiguration>("VehicleStats");

@@ -128,7 +128,7 @@ public class VehicleClusterManager : IVehicleClusterManager
             return;
         }
 
-        var distanceToCenter = _distanceCalculator.Distance(cluster.Center, incomingVehicle.MedianInfo.Location);
+        var distanceToCenter = _distanceCalculator.Distance(cluster.Center, incomingVehicle.MedianLocation.Location);
 
         if (distanceToCenter > _clusterConfiguration.ClusterRadius)
         {
@@ -184,9 +184,9 @@ public class VehicleClusterManager : IVehicleClusterManager
         }
     }
 
-    private Cluster? FindSuitableCluster(Vehicle vehicle, List<Vehicle> vehicles)
+    private Cluster FindSuitableCluster(Vehicle vehicle, List<Vehicle> vehicles)
     {
-        Cluster? closestCluster = null;
+        Cluster closestCluster = null;
         double minDistance = double.MaxValue;
 
         foreach (var cluster in _clusters)
@@ -194,7 +194,7 @@ public class VehicleClusterManager : IVehicleClusterManager
             if (cluster.Vehicles.Count >= _clusterConfiguration.MaxVehicles)
                 continue;
 
-            var distanceToCenter = _distanceCalculator.Distance(cluster.Center, vehicle.MedianInfo.Location);
+            var distanceToCenter = _distanceCalculator.Distance(cluster.Center, vehicle.MedianLocation.Location);
             var clusterHead = vehicles
                 .FirstOrDefault(v => cluster.Vehicles
                     .Any(cv => cv.Id == v.Id));

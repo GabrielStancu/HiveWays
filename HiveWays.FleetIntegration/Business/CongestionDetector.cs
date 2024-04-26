@@ -5,15 +5,15 @@ using Microsoft.Extensions.Logging;
 
 namespace HiveWays.FleetIntegration.Business;
 
-public class CongestionCalculator : ICongestionCalculator
+public class CongestionDetector : ICongestionDetector
 {
     private readonly IDistanceCalculator _distanceCalculator;
     private readonly CongestionConfiguration _congestionConfiguration;
-    private readonly ILogger<CongestionCalculator> _logger;
+    private readonly ILogger<CongestionDetector> _logger;
 
-    public CongestionCalculator(IDistanceCalculator distanceCalculator,
+    public CongestionDetector(IDistanceCalculator distanceCalculator,
         CongestionConfiguration congestionConfiguration,
-        ILogger<CongestionCalculator> logger)
+        ILogger<CongestionDetector> logger)
     {
         _distanceCalculator = distanceCalculator;
         _congestionConfiguration = congestionConfiguration;
@@ -41,19 +41,19 @@ public class CongestionCalculator : ICongestionCalculator
 
         foreach (var vehicle in cluster.Vehicles)
         {
-            foreach (var info in vehicle.Info.OrderBy(i => i.Timestamp))
+            foreach (var info in vehicle.Trajectory.OrderBy(i => i.Timestamp))
             {
                 averageSpeed += info.SpeedKmph;
                 totalAcceleration += Math.Abs(info.AccelerationKmph);
 
-                if (info != vehicle.Info[0])
+                if (info != vehicle.Trajectory[0])
                 {
-                    totalDistance += _distanceCalculator.Distance(info.Location, vehicle.Info[vehicle.Info.IndexOf(info) - 1].Location);
+                    totalDistance += _distanceCalculator.Distance(info.Location, vehicle.Trajectory[vehicle.Trajectory.IndexOf(info) - 1].Location);
                 }
             }
         }
 
-        int totalInfoPoints = cluster.Vehicles.Sum(v => v.Info.Count);
+        int totalInfoPoints = cluster.Vehicles.Sum(v => v.Trajectory.Count);
         averageSpeed /= totalInfoPoints;
         double density = vehiclesCount / totalDistance;
 

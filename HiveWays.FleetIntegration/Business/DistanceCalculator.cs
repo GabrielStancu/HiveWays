@@ -15,7 +15,7 @@ public class DistanceCalculator : IDistanceCalculator
     }
 
     public bool IsWithinDistanceToCluster(Vehicle clusterHead, Vehicle nearbyVehicle)
-        => Distance(clusterHead.MedianInfo.Location, nearbyVehicle.MedianInfo.Location) <=
+        => Distance(clusterHead.MedianLocation.Location, nearbyVehicle.MedianLocation.Location) <=
            _clusterConfiguration.ClusterRadius;
 
     public double Distance(GeoPoint point1, GeoPoint point2)

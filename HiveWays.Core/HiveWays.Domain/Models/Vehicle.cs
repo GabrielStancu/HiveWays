@@ -5,18 +5,18 @@ namespace HiveWays.Domain.Models;
 public class Vehicle
 {
     public int Id { get; set; }
-    public List<VehicleInfo> Info { get; set; }
+    public List<VehicleLocation> Trajectory { get; set; }
 
     [JsonIgnore]
     public bool IsAssignedToCluster { get; set; }
 
     [JsonIgnore]
-    public VehicleInfo MedianInfo => Info?
+    public VehicleLocation MedianLocation => Trajectory?
         .OrderBy(i => i.Timestamp)
-        .ToList()[Info.Count/2];
+        .ToList()[Trajectory.Count/2];
 }
 
-public class VehicleInfo
+public class VehicleLocation
 {
     public DateTime Timestamp { get; set; }
     public GeoPoint Location { get; set; }

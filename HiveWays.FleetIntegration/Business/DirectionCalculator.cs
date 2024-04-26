@@ -15,8 +15,8 @@ public class DirectionCalculator : IDirectionCalculator
 
     public bool IsSameDirection(Vehicle clusterHead, Vehicle nearbyVehicle)
     {
-        var clusterHeadMedian = clusterHead.MedianInfo;
-        var nearbyVehicleMedian = nearbyVehicle.MedianInfo;
+        var clusterHeadMedian = clusterHead.MedianLocation;
+        var nearbyVehicleMedian = nearbyVehicle.MedianLocation;
 
         if (clusterHeadMedian == null || nearbyVehicleMedian == null ||
             clusterHeadMedian.RoadId != nearbyVehicleMedian.RoadId)
@@ -24,8 +24,8 @@ public class DirectionCalculator : IDirectionCalculator
             return false;
         }
 
-        var clusterHeadDirection = ComputeDirectionVector(clusterHead.Info.OrderBy(i => i.Timestamp).ToList());
-        var nearbyVehicleDirection = ComputeDirectionVector(nearbyVehicle.Info.OrderBy(i => i.Timestamp).ToList());
+        var clusterHeadDirection = ComputeDirectionVector(clusterHead.Trajectory.OrderBy(i => i.Timestamp).ToList());
+        var nearbyVehicleDirection = ComputeDirectionVector(nearbyVehicle.Trajectory.OrderBy(i => i.Timestamp).ToList());
         double dotProduct = DotProduct(clusterHeadDirection, nearbyVehicleDirection);
         double magnitudesProduct = Magnitude(clusterHeadDirection) * Magnitude(nearbyVehicleDirection);
         double angle = Math.Acos(dotProduct / magnitudesProduct) * (180 / Math.PI);
@@ -33,7 +33,7 @@ public class DirectionCalculator : IDirectionCalculator
         return angle <= _clusterConfiguration.DirectionToleranceDegrees;
     }
 
-    private double[] ComputeDirectionVector(List<VehicleInfo> info)
+    private double[] ComputeDirectionVector(List<VehicleLocation> info)
     {
         var directionVector = new double[2]; // [latitude difference, longitude difference]
 
