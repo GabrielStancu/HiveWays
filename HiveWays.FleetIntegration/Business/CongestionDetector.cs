@@ -1,4 +1,5 @@
-﻿using HiveWays.Domain.Models;
+﻿using System.Collections.Concurrent;
+using HiveWays.Domain.Models;
 using HiveWays.FleetIntegration.Business.Configuration;
 using HiveWays.FleetIntegration.Business.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -22,14 +23,18 @@ public class CongestionDetector : ICongestionDetector
 
     public IEnumerable<Cluster> ComputeCongestedClusters(IEnumerable<Cluster> clusters)
     {
-        foreach (var cluster in clusters)
+        var congestedClusters = new ConcurrentBag<Cluster>();
+
+        Parallel.ForEach(clusters, cluster =>
         {
-            if (IsCongested(cluster))
-            {
-                _logger.LogInformation("Congestion detected for cluster {CongestedCluster}", cluster.Id);
-                yield return cluster;
-            }
-        }
+            if (!IsCongested(cluster)) 
+                return;
+
+            _logger.LogInformation("Congestion detected for cluster {CongestedCluster}", cluster.Id);
+            congestedClusters.Add(cluster);
+        });
+
+        return congestedClusters;
     }
 
     private bool IsCongested(Cluster cluster)

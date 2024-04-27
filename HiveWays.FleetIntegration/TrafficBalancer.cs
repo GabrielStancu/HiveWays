@@ -4,7 +4,9 @@ using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Text.Json;
 using HiveWays.Business.RedisClient;
+using HiveWays.Business.TableStorageClient;
 using HiveWays.Domain.Models;
+using HiveWays.FleetIntegration.Business.Configuration;
 using HiveWays.FleetIntegration.Business.Interfaces;
 using HiveWays.FleetIntegration.Models;
 
@@ -14,14 +16,20 @@ public class TrafficBalancer
 {
     private readonly ITrafficBalancerService _trafficBalancer;
     private readonly IRedisClient<VehicleStats> _redisClient;
+    private readonly ITableStorageClient<RoutingInfoEntity> _tableClient;
+    private readonly RoadConfiguration _roadConfiguration;
     private readonly ILogger<TrafficBalancer> _logger;
 
     public TrafficBalancer(ITrafficBalancerService trafficBalancer,
         IRedisClient<VehicleStats> redisClient,
+        ITableStorageClient<RoutingInfoEntity> tableClient,
+        RoadConfiguration roadConfiguration,
         ILogger<TrafficBalancer> logger)
     {
         _trafficBalancer = trafficBalancer;
         _redisClient = redisClient;
+        _tableClient = tableClient;
+        _roadConfiguration = roadConfiguration;
         _logger = logger;
     }
 
@@ -35,12 +43,20 @@ public class TrafficBalancer
         var congestedVehicles = JsonSerializer.Deserialize<List<CongestedVehicle>>(messageBody);
 
         var vehicleStats = (await _redisClient.GetElementsAsync()).ToList();
-        _logger.LogInformation("Fetched stats for vehicles: {FetchedVehicleStatsIds}", vehicleStats.Select(s => s.Id));
+        _logger.LogInformation("Fetched stats for vehicles: [{FetchedVehicleStatsIds}]", vehicleStats.Select(s => s.Id));
 
-        var (mainRoadRatio, secondaryRoadRatio) = _trafficBalancer.UpdateBalancingRatio(congestedVehicles, vehicleStats);
-        _logger.LogInformation("Recomputed main road ratio: {MainRoadRatio}; secondary road ratio: {SecondaryRoadRatio}", mainRoadRatio, secondaryRoadRatio);
+        var mainRoadRatio = _trafficBalancer.RecomputeBalancingRatio(congestedVehicles, vehicleStats);
+        _logger.LogInformation("Recomputed main road ratio: {MainRoadRatio}", mainRoadRatio);
 
-        // TODO: Upload these values in some kind of table, maybe the balancer service should take the values from there
-        // TODO: Build layer over the table from which the client can fetch periodically the enw value of the slider
+        var routingInfo = new RoutingInfoEntity
+        {
+            PartitionKey = _roadConfiguration.MainRoadId.ToString(),
+            RowKey = _roadConfiguration.SecondaryRoadId.ToString(),
+            Value = mainRoadRatio
+        };
+
+        await _tableClient.UpsertEntityAsync(routingInfo);
+        _logger.LogInformation("Upserted new value of {MainRoadRatio} for roads with id {MainRoadId} and road with id {SecondaryRoadId}",
+            routingInfo.Value, routingInfo.PartitionKey, routingInfo.RowKey);
     }
 }

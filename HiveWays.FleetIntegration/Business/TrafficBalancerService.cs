@@ -1,4 +1,5 @@
 ﻿using HiveWays.Domain.Models;
+using HiveWays.FleetIntegration.Business.Configuration;
 using HiveWays.FleetIntegration.Business.Interfaces;
 using HiveWays.FleetIntegration.Models;
 
@@ -6,35 +7,32 @@ namespace HiveWays.FleetIntegration.Business;
 
 public class TrafficBalancerService : ITrafficBalancerService
 {
-    private const double DefaultMainRoadRatio = 0.8;
-    private const double DefaultSecondaryRoadRatio = 0.2;
-    private const double CongestionThreshold = 50;
+    private readonly RouteConfiguration _routeConfiguration;
+    private readonly RoadConfiguration _roadConfiguration;
 
-    private double _mainRoadRatio = DefaultMainRoadRatio;
-    private double _secondaryRoadRatio = DefaultSecondaryRoadRatio;
-
-    public (double MainRoadRatio, double SecondaryRoadRatio) UpdateBalancingRatio(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats)
+    public TrafficBalancerService(RouteConfiguration routeConfiguration,
+        RoadConfiguration roadConfiguration)
     {
-        double mainRoadCongestionLevel = CalculateCongestionLevel(congestedVehicles, vehicleStats, roadId: 1) / 2;
-        double secondaryRoadCongestionLevel = CalculateCongestionLevel(congestedVehicles, vehicleStats, roadId: 2);
+        _routeConfiguration = routeConfiguration;
+        _roadConfiguration = roadConfiguration;
+    }
 
-        if (mainRoadCongestionLevel >= CongestionThreshold)
+    public double RecomputeBalancingRatio(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats)
+    {
+        double mainRoadCongestionLevel = CalculateCongestionLevel(congestedVehicles, vehicleStats, _roadConfiguration.MainRoadId);
+        double secondaryRoadCongestionLevel = CalculateCongestionLevel(congestedVehicles, vehicleStats, _roadConfiguration.SecondaryRoadId);
+
+        if (mainRoadCongestionLevel >= _routeConfiguration.CongestionThreshold)
         {
-            _mainRoadRatio = DefaultMainRoadRatio * (1 - mainRoadCongestionLevel / 100);
-            _secondaryRoadRatio = DefaultSecondaryRoadRatio * (1 + mainRoadCongestionLevel / 100);
+            return _routeConfiguration.DefaultMainRoadRatio * (1 - mainRoadCongestionLevel / 100);
         }
-        else if (secondaryRoadCongestionLevel >= CongestionThreshold)
+        
+        if (secondaryRoadCongestionLevel >= _routeConfiguration.CongestionThreshold)
         {
-            _mainRoadRatio = DefaultMainRoadRatio * (1 + secondaryRoadCongestionLevel / 100);
-            _secondaryRoadRatio = DefaultSecondaryRoadRatio * (1 - secondaryRoadCongestionLevel / 100);
-        }
-        else
-        {
-            _mainRoadRatio = DefaultMainRoadRatio;
-            _secondaryRoadRatio = DefaultSecondaryRoadRatio;
+            return _routeConfiguration.DefaultMainRoadRatio * (1 + secondaryRoadCongestionLevel / 100);
         }
 
-        return (_mainRoadRatio, _secondaryRoadRatio);
+        return _routeConfiguration.DefaultMainRoadRatio;
     }
 
     private double CalculateCongestionLevel(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats, int roadId)
