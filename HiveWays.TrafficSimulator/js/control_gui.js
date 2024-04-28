@@ -631,6 +631,42 @@ if(document.getElementById("slider_density")!==null){
 var fracOff=0; 
 var slider_fracOff;
 var slider_fracOffVal;
+const url = "http://localhost:7015/api/TrafficRouter";
+
+setInterval(() => {
+    if (this.exportStarted) {
+      const requestData = {
+        MainRoadId: '1',
+        SecondaryRoadId: '2'
+      };
+
+      fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      })
+      .then(response => {
+          response.json().then(data => {
+            var mainRoadRatio = data.Value;
+            fracOff = (1 - mainRoadRatio).toFixed(2);
+
+            slider_fracOff = document.getElementById("slider_fracOff");
+            slider_fracOffVal = document.getElementById("slider_fracOffVal");
+            slider_fracOff.value=100*fracOff;
+            slider_fracOffVal.innerHTML=100*fracOff+" %";
+          });
+      })
+      .then(data => {
+          console.log('Response from endpoint:', data);
+      })
+      .catch(error => {
+          console.error('Error calling endpoint:', error);
+      });
+  }
+}, 1000);
+
 if(document.getElementById("slider_fracOff")!==null){
     slider_fracOff = document.getElementById("slider_fracOff");
     slider_fracOffVal = document.getElementById("slider_fracOffVal");
@@ -1080,10 +1116,12 @@ function updateModelsUphill(){
 // see also ~/versionedProjects/demo_js/writeFileDemo.html, .js
 //#################################################################
 
+var exportStarted = false;
 var downloadActive=false; // initialisation
 var dt_export=0.5;          // every dt_export seconds stored in exportString
 
 function downloadCallback(){
+  this.exportStarted = true;
   setInterval(function() {
     if(downloadActive){
       performDownload();
