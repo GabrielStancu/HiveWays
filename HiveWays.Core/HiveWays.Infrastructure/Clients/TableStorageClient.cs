@@ -17,6 +17,13 @@ public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITa
         _logger = logger;
     }
 
+    public async Task<T> GetEntityAsync(string partitionKey, string rowKey)
+    {
+        await InitTableClientAsync();
+
+        return await _tableClient.GetEntityAsync<T>(partitionKey, rowKey);
+    }
+
     public async Task UpsertEntityAsync(T entity)
     {
         await InitTableClientAsync();
