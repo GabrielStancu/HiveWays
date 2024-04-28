@@ -628,7 +628,7 @@ if(document.getElementById("slider_density")!==null){
 
 // offramp use fraction  slider
 
-var fracOff=0.1; 
+var fracOff=0.2; 
 var slider_fracOff;
 var slider_fracOffVal;
 if(document.getElementById("slider_fracOff")!==null){
