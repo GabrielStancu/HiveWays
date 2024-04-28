@@ -21,7 +21,17 @@ public class TableStorageClient<T> : ITableStorageClient<T> where T : class, ITa
     {
         await InitTableClientAsync();
 
-        return await _tableClient.GetEntityAsync<T>(partitionKey, rowKey);
+        try
+        {
+            return await _tableClient.GetEntityAsync<T>(partitionKey, rowKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Could not find entity with partition key {NotFoundPartitionKey} and row key {NotFoundRowKey}", partitionKey, rowKey);
+            _logger.LogError("Exception while querying table storage: {TableStorageException} @ {TableStorageExceptionStackTrace}", ex.Message, ex.StackTrace);
+
+            return null;
+        }
     }
 
     public async Task UpsertEntityAsync(T entity)
