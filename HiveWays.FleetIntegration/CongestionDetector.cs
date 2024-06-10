@@ -11,20 +11,20 @@ using Microsoft.Extensions.Logging;
 
 namespace HiveWays.FleetIntegration;
 
-public class ClusterVehicles
+public class CongestionDetector
 {
     private readonly IRedisClient<VehicleStats> _redisClient;
     private readonly IVehicleClusterManager _vehicleClusterManager;
     private readonly ICongestionDetector _congestionDetector;
     private readonly IServiceBusSenderClient _sbClient;
-    private readonly ILogger<ClusterVehicles> _logger;
+    private readonly ILogger<CongestionDetector> _logger;
 
-    public ClusterVehicles(IRedisClient<VehicleStats> redisClient,
+    public CongestionDetector(IRedisClient<VehicleStats> redisClient,
         IVehicleClusterManager vehicleClusterManager,
         ICongestionDetector congestionDetector,
         IServiceBusSenderFactory serviceBusSenderFactory,
         CongestionQueueConfiguration congestionQueueConfiguration,
-        ILogger<ClusterVehicles> logger)
+        ILogger<CongestionDetector> logger)
     {
         _redisClient = redisClient;
         _vehicleClusterManager = vehicleClusterManager;
@@ -33,7 +33,7 @@ public class ClusterVehicles
         _logger = logger;
     }
 
-    [Function(nameof(ClusterVehicles))]
+    [Function(nameof(CongestionDetector))]
     public async Task Run([TimerTrigger("* * * * * *")] TimerInfo myTimer)
     {
         var vehicleStatsSets = await _redisClient.GetElementsAsync();
