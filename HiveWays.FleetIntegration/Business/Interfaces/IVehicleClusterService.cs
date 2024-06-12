@@ -2,7 +2,7 @@
 
 namespace HiveWays.FleetIntegration.Business.Interfaces;
 
-public interface IVehicleClusterManager
+public interface IVehicleClusterService
 {
     List<Cluster> ClusterVehicles(List<Vehicle> vehicles);
 }

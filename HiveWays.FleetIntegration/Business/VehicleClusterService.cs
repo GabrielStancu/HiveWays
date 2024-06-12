@@ -5,20 +5,20 @@ using Microsoft.Extensions.Logging;
 
 namespace HiveWays.FleetIntegration.Business;
 
-public class VehicleClusterManager : IVehicleClusterManager
+public class VehicleClusterService : IVehicleClusterService
 {
     private readonly IDistanceCalculator _distanceCalculator;
     private readonly IDirectionCalculator _directionCalculator;
     private readonly ClusterConfiguration _clusterConfiguration;
-    private readonly ILogger<VehicleClusterManager> _logger;
+    private readonly ILogger<VehicleClusterService> _logger;
 
     private List<Cluster> _clusters = new();
     private int _id;
 
-    public VehicleClusterManager(IDistanceCalculator distanceCalculator,
+    public VehicleClusterService(IDistanceCalculator distanceCalculator,
         IDirectionCalculator directionCalculator,
         ClusterConfiguration clusterConfiguration,
-        ILogger<VehicleClusterManager> logger)
+        ILogger<VehicleClusterService> logger)
     {
         _distanceCalculator = distanceCalculator;
         _directionCalculator = directionCalculator;

@@ -14,20 +14,20 @@ namespace HiveWays.FleetIntegration;
 public class CongestionDetector
 {
     private readonly IRedisClient<VehicleStats> _redisClient;
-    private readonly IVehicleClusterManager _vehicleClusterManager;
+    private readonly IVehicleClusterService _vehicleClusterService;
     private readonly ICongestionDetector _congestionDetector;
     private readonly IServiceBusSenderClient _sbClient;
     private readonly ILogger<CongestionDetector> _logger;
 
     public CongestionDetector(IRedisClient<VehicleStats> redisClient,
-        IVehicleClusterManager vehicleClusterManager,
+        IVehicleClusterService vehicleClusterService,
         ICongestionDetector congestionDetector,
         IServiceBusSenderFactory serviceBusSenderFactory,
         CongestionQueueConfiguration congestionQueueConfiguration,
         ILogger<CongestionDetector> logger)
     {
         _redisClient = redisClient;
-        _vehicleClusterManager = vehicleClusterManager;
+        _vehicleClusterService = vehicleClusterService;
         _congestionDetector = congestionDetector;
         _sbClient = serviceBusSenderFactory.GetServiceBusSenderClient(congestionQueueConfiguration.ConnectionString, congestionQueueConfiguration.QueueName);
         _logger = logger;
@@ -44,7 +44,7 @@ public class CongestionDetector
 
         _logger.LogInformation("Clustering vehicles: {VehiclesToCluster}", JsonSerializer.Serialize(vehicles.Select(v => v.Id)));
 
-        var clusters = _vehicleClusterManager.ClusterVehicles(vehicles);
+        var clusters = _vehicleClusterService.ClusterVehicles(vehicles);
         _logger.LogInformation("Found clusters: {VehicleClusters}", JsonSerializer.Serialize(clusters));
 
         var congestedClusters = _congestionDetector

@@ -21,7 +21,7 @@ var host = new HostBuilder()
         services.ConfigureFunctionsApplicationInsights();
         services.AddSingleton<IRedisClient<VehicleStats>, RedisClient<VehicleStats>>();
         services.AddSingleton<ITableStorageClient<DataPointEntity>, TableStorageClient<DataPointEntity>>();
-        services.AddSingleton<IVehicleClusterManager, VehicleClusterManager>();
+        services.AddSingleton<IVehicleClusterService, VehicleClusterService>();
         services.AddSingleton<IDirectionCalculator, DirectionCalculator>();
         services.AddSingleton<IDistanceCalculator, DistanceCalculator>();
         services.AddSingleton<ICongestionDetector, CongestionDetector>();
