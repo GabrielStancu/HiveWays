@@ -19,6 +19,7 @@ public class TrafficBalancerService : ITrafficBalancerService
 
     public double RecomputeBalancingRatio(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats)
     {
+        // TODO: change the algorithm for a better one
         double mainRoadCongestionLevel = CalculateCongestionLevel(congestedVehicles, vehicleStats, _roadConfiguration.MainRoadId);
         double secondaryRoadCongestionLevel = CalculateCongestionLevel(congestedVehicles, vehicleStats, _roadConfiguration.SecondaryRoadId);
 

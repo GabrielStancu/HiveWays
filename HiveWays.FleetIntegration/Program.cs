@@ -24,7 +24,7 @@ var host = new HostBuilder()
         services.AddSingleton<IVehicleClusterService, VehicleClusterService>();
         services.AddSingleton<IDirectionCalculator, DirectionCalculator>();
         services.AddSingleton<IDistanceCalculator, DistanceCalculator>();
-        services.AddSingleton<ICongestionDetector, CongestionDetector>();
+        services.AddSingleton<ICongestionDetectionService, CongestionDetectionService>();
         services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
         services.AddSingleton<ITrafficBalancerService, TrafficBalancerService>();
         services.AddSingleton<ITableStorageClient<RoutingInfoEntity>, TableStorageClient<RoutingInfoEntity>>();

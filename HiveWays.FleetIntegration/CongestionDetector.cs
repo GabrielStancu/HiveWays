@@ -15,20 +15,20 @@ public class CongestionDetector
 {
     private readonly IRedisClient<VehicleStats> _redisClient;
     private readonly IVehicleClusterService _vehicleClusterService;
-    private readonly ICongestionDetector _congestionDetector;
+    private readonly ICongestionDetectionService _congestionDetectionService;
     private readonly IServiceBusSenderClient _sbClient;
     private readonly ILogger<CongestionDetector> _logger;
 
     public CongestionDetector(IRedisClient<VehicleStats> redisClient,
         IVehicleClusterService vehicleClusterService,
-        ICongestionDetector congestionDetector,
+        ICongestionDetectionService congestionDetectionService,
         IServiceBusSenderFactory serviceBusSenderFactory,
         CongestionQueueConfiguration congestionQueueConfiguration,
         ILogger<CongestionDetector> logger)
     {
         _redisClient = redisClient;
         _vehicleClusterService = vehicleClusterService;
-        _congestionDetector = congestionDetector;
+        _congestionDetectionService = congestionDetectionService;
         _sbClient = serviceBusSenderFactory.GetServiceBusSenderClient(congestionQueueConfiguration.ConnectionString, congestionQueueConfiguration.QueueName);
         _logger = logger;
     }
@@ -47,7 +47,7 @@ public class CongestionDetector
         var clusters = _vehicleClusterService.ClusterVehicles(vehicles);
         _logger.LogInformation("Found clusters: {VehicleClusters}", JsonSerializer.Serialize(clusters));
 
-        var congestedClusters = _congestionDetector
+        var congestedClusters = _congestionDetectionService
             .ComputeCongestedClusters(clusters)
             .ToList();
 

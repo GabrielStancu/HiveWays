@@ -6,15 +6,15 @@ using Microsoft.Extensions.Logging;
 
 namespace HiveWays.FleetIntegration.Business;
 
-public class CongestionDetector : ICongestionDetector
+public class CongestionDetectionService : ICongestionDetectionService
 {
     private readonly IDistanceCalculator _distanceCalculator;
     private readonly CongestionConfiguration _congestionConfiguration;
-    private readonly ILogger<CongestionDetector> _logger;
+    private readonly ILogger<CongestionDetectionService> _logger;
 
-    public CongestionDetector(IDistanceCalculator distanceCalculator,
+    public CongestionDetectionService(IDistanceCalculator distanceCalculator,
         CongestionConfiguration congestionConfiguration,
-        ILogger<CongestionDetector> logger)
+        ILogger<CongestionDetectionService> logger)
     {
         _distanceCalculator = distanceCalculator;
         _congestionConfiguration = congestionConfiguration;

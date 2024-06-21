@@ -81,15 +81,7 @@ public class VehicleClusterService : IVehicleClusterService
 
         foreach (var nearbyVehicle in nearbyVehicles)
         {
-            if (nearbyVehicle.IsAssignedToCluster)
-                continue;
-
-            if (!_directionCalculator.IsSameDirection(clusterHead, nearbyVehicle))
-                continue;
-
-            cluster.AddVehicle(nearbyVehicle);
-            nearbyVehicle.IsAssignedToCluster = true;
-            AssignNearbyVehiclesToCluster(cluster, nearbyVehicle, vehicles);
+            TryAddNearbyVehicleToCluster(cluster, clusterHead, vehicles, nearbyVehicle);
         }
     }
 
@@ -100,8 +92,22 @@ public class VehicleClusterService : IVehicleClusterService
             .ToList();
     }
 
+    private void TryAddNearbyVehicleToCluster(Cluster cluster, Vehicle clusterHead, List<Vehicle> vehicles, Vehicle nearbyVehicle)
+    {
+        if (nearbyVehicle.IsAssignedToCluster)
+            return;
+
+        if (!_directionCalculator.IsSameDirection(clusterHead, nearbyVehicle))
+            return;
+
+        cluster.AddVehicle(nearbyVehicle);
+        nearbyVehicle.IsAssignedToCluster = true;
+        AssignNearbyVehiclesToCluster(cluster, nearbyVehicle, vehicles);
+    }
+
     private void ReorganizeClusters(List<Vehicle> vehicles)
     {
+        // TODO: We should also add the new incoming vehicles to clusters
         foreach (var cluster in _clusters.ToList())
         {
             foreach (var vehicle in cluster.Vehicles.ToList())
@@ -116,71 +122,89 @@ public class VehicleClusterService : IVehicleClusterService
         var incomingVehicle = vehicles.FirstOrDefault(v => v.Id == vehicle.Id);
         if (incomingVehicle is null)
         {
-            _logger.LogWarning("Vehicle {VehicleId} from {ClusterId} not found in incoming vehicles", vehicle.Id,
-                cluster.Id);
-
-            cluster.RemoveVehicle(vehicle.Id);
-            if (cluster.Center is null || !cluster.Vehicles.Any())
-            {
-                _clusters.Remove(cluster);
-            }
-
+            RemoveStoppedVehicle(vehicle, cluster);
             return;
         }
 
         var distanceToCenter = _distanceCalculator.Distance(cluster.Center, incomingVehicle.MedianLocation.Location);
-
         if (distanceToCenter > _clusterConfiguration.ClusterRadius)
         {
-            cluster.RemoveVehicle(incomingVehicle.Id);
-            if (cluster.Center is null || !cluster.Vehicles.Any())
-            {
-                _clusters.Remove(cluster);
-            }
-
-            var suitableCluster = FindSuitableCluster(incomingVehicle, vehicles);
-            if (suitableCluster != null)
-            {
-                suitableCluster.AddVehicle(incomingVehicle);
-            }
-            else
-            {
-                var newCluster = CreateCluster(incomingVehicle);
-                _clusters.Add(newCluster);
-            }
+            FindNewSuitableCluster(vehicles, cluster, incomingVehicle);
         }
         else
         {
-            var clusterHead = vehicles
-                .FirstOrDefault(v => cluster.Vehicles
-                    .Any(cv => cv.Id == v.Id));
+            AdjustClusterOnDirectionChange(vehicles, cluster, incomingVehicle);
+        }
+    }
 
-            if (clusterHead is null)
-            {
-                _logger.LogWarning("Could not find cluster head for cluster {ClusterId}", cluster.Id);
-                return;
-            }
+    private void RemoveStoppedVehicle(Vehicle vehicle, Cluster cluster)
+    {
+        _logger.LogWarning("Vehicle {VehicleId} from {ClusterId} not found in incoming vehicles", vehicle.Id,
+            cluster.Id);
 
-            if (!_directionCalculator.IsSameDirection(clusterHead, incomingVehicle))
-            {
-                cluster.RemoveVehicle(incomingVehicle.Id);
-                if (cluster.Center is null || !cluster.Vehicles.Any())
-                {
-                    _clusters.Remove(cluster);
-                }
+        cluster.RemoveVehicle(vehicle.Id);
+        if (cluster.Center is null || !cluster.Vehicles.Any())
+        {
+            _clusters.Remove(cluster);
+        }
+    }
 
-                var suitableCluster = FindSuitableCluster(incomingVehicle, vehicles);
+    private void FindNewSuitableCluster(List<Vehicle> vehicles, Cluster cluster, Vehicle incomingVehicle)
+    {
+        cluster.RemoveVehicle(incomingVehicle.Id);
+        if (cluster.Center is null || !cluster.Vehicles.Any())
+        {
+            _clusters.Remove(cluster);
+        }
 
-                if (suitableCluster != null)
-                {
-                    suitableCluster.AddVehicle(incomingVehicle);
-                }
-                else
-                {
-                    var newCluster = CreateCluster(incomingVehicle);
-                    _clusters.Add(newCluster);
-                }
-            }
+        var suitableCluster = FindSuitableCluster(incomingVehicle, vehicles);
+        if (suitableCluster != null)
+        {
+            suitableCluster.AddVehicle(incomingVehicle);
+        }
+        else
+        {
+            var newCluster = CreateCluster(incomingVehicle);
+            _clusters.Add(newCluster);
+        }
+    }
+
+    private void AdjustClusterOnDirectionChange(List<Vehicle> vehicles, Cluster cluster, Vehicle incomingVehicle)
+    {
+        var clusterHead = vehicles
+            .FirstOrDefault(v => cluster.Vehicles
+                .Any(cv => cv.Id == v.Id));
+
+        if (clusterHead is null)
+        {
+            _logger.LogWarning("Could not find cluster head for cluster {ClusterId}", cluster.Id);
+            return;
+        }
+
+        if (!_directionCalculator.IsSameDirection(clusterHead, incomingVehicle))
+        {
+            RemoveVehicleWithDifferentDirection(vehicles, cluster, incomingVehicle);
+        }
+    }
+
+    private void RemoveVehicleWithDifferentDirection(List<Vehicle> vehicles, Cluster cluster, Vehicle incomingVehicle)
+    {
+        cluster.RemoveVehicle(incomingVehicle.Id);
+        if (cluster.Center is null || !cluster.Vehicles.Any())
+        {
+            _clusters.Remove(cluster);
+        }
+
+        var suitableCluster = FindSuitableCluster(incomingVehicle, vehicles);
+
+        if (suitableCluster != null)
+        {
+            suitableCluster.AddVehicle(incomingVehicle);
+        }
+        else
+        {
+            var newCluster = CreateCluster(incomingVehicle);
+            _clusters.Add(newCluster);
         }
     }
 
