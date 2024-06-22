@@ -17,23 +17,25 @@ public class TrafficBalancerService : ITrafficBalancerService
         _roadConfiguration = roadConfiguration;
     }
 
-    public double RecomputeBalancingRatio(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats)
+    public double RecomputeBalancingRatio(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats, double previousRatio)
     {
-        // TODO: change the algorithm for a better one
-        double mainRoadCongestionLevel = CalculateCongestionLevel(congestedVehicles, vehicleStats, _roadConfiguration.MainRoadId);
-        double secondaryRoadCongestionLevel = CalculateCongestionLevel(congestedVehicles, vehicleStats, _roadConfiguration.SecondaryRoadId);
+        double congestionLevel = CalculateCongestionLevel(congestedVehicles, vehicleStats, _roadConfiguration.MainRoadId);
+        double newRatio;
 
-        if (mainRoadCongestionLevel >= _routeConfiguration.CongestionThreshold)
+        if (congestionLevel > _routeConfiguration.CongestionThreshold)
         {
-            return _routeConfiguration.DefaultMainRoadRatio * (1 - mainRoadCongestionLevel / 100);
+            newRatio = previousRatio - _routeConfiguration.SmoothingFactor * 
+                (congestionLevel / _routeConfiguration.CongestionThreshold);
         }
-        
-        if (secondaryRoadCongestionLevel >= _routeConfiguration.CongestionThreshold)
+        else
         {
-            return _routeConfiguration.DefaultMainRoadRatio * (1 + secondaryRoadCongestionLevel / 100);
+            newRatio = previousRatio + _routeConfiguration.SmoothingFactor * 
+                ((_routeConfiguration.CongestionThreshold - congestionLevel) / _routeConfiguration.CongestionThreshold);
         }
 
-        return _routeConfiguration.DefaultMainRoadRatio;
+        newRatio = Math.Max(0.0, Math.Min(newRatio, 1.0));
+
+        return newRatio;
     }
 
     private double CalculateCongestionLevel(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats, int roadId)

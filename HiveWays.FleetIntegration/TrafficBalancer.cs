@@ -45,14 +45,18 @@ public class TrafficBalancer
         var vehicleStats = (await _redisClient.GetElementsAsync()).ToList();
         _logger.LogInformation("Fetched stats for vehicles: [{FetchedVehicleStatsIds}]", vehicleStats.Select(s => s.Id));
 
-        var mainRoadRatio = _trafficBalancer.RecomputeBalancingRatio(congestedVehicles, vehicleStats);
-        _logger.LogInformation("Recomputed main road ratio: {MainRoadRatio}", mainRoadRatio);
+        var previousRatio = await _tableClient
+            .GetEntityAsync(_roadConfiguration.MainRoadId.ToString(), _roadConfiguration.SecondaryRoadId.ToString());
+        _logger.LogInformation("Fetched previous routing ratio: {PreviousRoutingRatio}", previousRatio.Value);
+
+        var newRatio = _trafficBalancer.RecomputeBalancingRatio(congestedVehicles, vehicleStats, previousRatio.Value);
+        _logger.LogInformation("Recomputed main road ratio: {MainRoadRatio}", newRatio);
 
         var routingInfo = new RoutingInfoEntity
         {
             PartitionKey = _roadConfiguration.MainRoadId.ToString(),
             RowKey = _roadConfiguration.SecondaryRoadId.ToString(),
-            Value = mainRoadRatio
+            Value = newRatio
         };
 
         await _tableClient.UpsertEntityAsync(routingInfo);

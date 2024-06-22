@@ -15,7 +15,6 @@ public class DirectionCalculator : IDirectionCalculator
 
     public bool IsSameDirection(Vehicle clusterHead, Vehicle nearbyVehicle)
     {
-        // TODO: apply for the entire vector, not just for the first 2 points
         var clusterHeadMedian = clusterHead.MedianLocation;
         var nearbyVehicleMedian = nearbyVehicle.MedianLocation;
 

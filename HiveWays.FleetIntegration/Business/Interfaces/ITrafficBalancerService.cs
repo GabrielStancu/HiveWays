@@ -5,5 +5,5 @@ namespace HiveWays.FleetIntegration.Business.Interfaces;
 
 public interface ITrafficBalancerService
 {
-    double RecomputeBalancingRatio(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats);
+    double RecomputeBalancingRatio(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats, double previousRatio);
 }

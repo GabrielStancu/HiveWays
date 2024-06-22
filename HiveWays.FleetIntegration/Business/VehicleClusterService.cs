@@ -54,7 +54,6 @@ public class VehicleClusterService : IVehicleClusterService
             var cluster = CreateCluster(vehicle);
             AssignNearbyVehiclesToCluster(cluster, vehicle, vehicles);
             clusters.Add(cluster);
-            vehicle.IsAssignedToCluster = true;
         }
 
         return clusters;
@@ -107,10 +106,24 @@ public class VehicleClusterService : IVehicleClusterService
 
     private void ReorganizeClusters(List<Vehicle> vehicles)
     {
-        // TODO: We should also add the new incoming vehicles to clusters
         foreach (var cluster in _clusters.ToList())
         {
             foreach (var vehicle in cluster.Vehicles.ToList())
+            {
+                ProcessClusterVehicle(vehicles, vehicle, cluster);
+            }
+        }
+
+        AssignIncomingVehiclesToClusters(vehicles);
+    }
+
+    private void AssignIncomingVehiclesToClusters(List<Vehicle> vehicles)
+    {
+        var incomingVehicles = vehicles.Where(v => !v.IsAssignedToCluster);
+
+        foreach (var vehicle in incomingVehicles)
+        {
+            foreach (var cluster in _clusters)
             {
                 ProcessClusterVehicle(vehicles, vehicle, cluster);
             }
@@ -135,6 +148,8 @@ public class VehicleClusterService : IVehicleClusterService
         {
             AdjustClusterOnDirectionChange(vehicles, cluster, incomingVehicle);
         }
+
+        vehicle.IsAssignedToCluster = true;
     }
 
     private void RemoveStoppedVehicle(Vehicle vehicle, Cluster cluster)
