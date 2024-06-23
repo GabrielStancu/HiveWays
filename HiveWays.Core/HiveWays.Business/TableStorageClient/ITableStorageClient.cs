@@ -4,8 +4,8 @@ namespace HiveWays.Business.TableStorageClient;
 
 public interface ITableStorageClient<T> where T : ITableEntity
 {
-    Task<T> GetEntityAsync(string partitionKey, string rowKey);
-    Task UpsertEntityAsync(T entity);
-    Task AddEntitiesBatchedAsync(IEnumerable<T> entities);
-    Task RemoveOldEntitiesAsync();
+    public Task<T> GetEntityAsync(string partitionKey, string rowKey);
+    public Task UpsertEntityAsync(T entity);
+    public Task AddEntitiesBatchedAsync(IEnumerable<T> entities);
+    public Task RemoveOldEntitiesAsync();
 }

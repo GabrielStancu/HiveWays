@@ -1,8 +1,7 @@
 using System.Text.Json;
-using HiveWays.Business.TableStorageClient;
 using HiveWays.FleetIntegration.Business.Configuration;
+using HiveWays.FleetIntegration.Business.Interfaces;
 using HiveWays.FleetIntegration.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -12,11 +11,11 @@ namespace HiveWays.FleetIntegration;
 
 public class TrafficRouter
 {
-    private readonly ITableStorageClient<RoutingInfoEntity> _tableStorageClient;
+    private readonly IRoutingInfoTableClient _tableStorageClient;
     private readonly RouteConfiguration _routeConfiguration;
     private readonly ILogger<TrafficRouter> _logger;
 
-    public TrafficRouter(ITableStorageClient<RoutingInfoEntity> tableStorageClient,
+    public TrafficRouter(IRoutingInfoTableClient tableStorageClient,
         RouteConfiguration routeConfiguration,
         ILogger<TrafficRouter> logger)
     {

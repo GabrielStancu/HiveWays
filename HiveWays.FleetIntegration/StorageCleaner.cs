@@ -1,6 +1,7 @@
 using HiveWays.Business.TableStorageClient;
 using HiveWays.Domain.Entities;
 using HiveWays.FleetIntegration.Business.Configuration;
+using HiveWays.FleetIntegration.Business.Interfaces;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
@@ -8,11 +9,11 @@ namespace HiveWays.FleetIntegration;
 
 public class StorageCleaner
 {
-    private readonly ITableStorageClient<DataPointEntity> _tableStorageClient;
+    private readonly IDeviceInfoTableClient _tableStorageClient;
     private readonly CleanupConfiguration _cleanupConfiguration;
     private readonly ILogger _logger;
 
-    public StorageCleaner(ITableStorageClient<DataPointEntity> tableStorageClient,
+    public StorageCleaner(IDeviceInfoTableClient tableStorageClient,
         CleanupConfiguration cleanupConfiguration,
         ILogger<StorageCleaner> logger)
     {

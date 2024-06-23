@@ -20,7 +20,8 @@ var host = new HostBuilder()
         services.AddApplicationInsightsTelemetryWorkerService();
         services.ConfigureFunctionsApplicationInsights();
         services.AddSingleton<IRedisClient<VehicleStats>, RedisClient<VehicleStats>>();
-        services.AddSingleton<ITableStorageClient<DataPointEntity>, TableStorageClient<DataPointEntity>>();
+        services.AddSingleton<IRoutingInfoTableClient, RoutingInfoTableClient>();
+        services.AddSingleton<IDeviceInfoTableClient, DeviceInfoTableClient>();
         services.AddSingleton<IVehicleClusterService, VehicleClusterService>();
         services.AddSingleton<IDirectionCalculator, DirectionCalculator>();
         services.AddSingleton<IDistanceCalculator, DistanceCalculator>();
@@ -31,7 +32,8 @@ var host = new HostBuilder()
         services.AddConfiguration<RedisConfiguration>("VehicleStats");
         services.AddConfiguration<ClusterConfiguration>("Cluster");
         services.AddConfiguration<CongestionConfiguration>("Congestion");
-        services.AddConfiguration<TableStorageConfiguration>("StorageAccount");
+        services.AddConfiguration<RoutingInfoConfiguration>("RoutingInfo");
+        services.AddConfiguration<DeviceInfoConfiguration>("DeviceInfo");
         services.AddConfiguration<CleanupConfiguration>("Cleanup");
         services.AddConfiguration<CongestionQueueConfiguration>("CongestionQueue");
         services.AddConfiguration<RouteConfiguration>("Route");

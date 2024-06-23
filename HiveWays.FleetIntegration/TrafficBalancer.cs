@@ -16,13 +16,13 @@ public class TrafficBalancer
 {
     private readonly ITrafficBalancerService _trafficBalancer;
     private readonly IRedisClient<VehicleStats> _redisClient;
-    private readonly ITableStorageClient<RoutingInfoEntity> _tableClient;
+    private readonly IRoutingInfoTableClient _tableClient;
     private readonly RoadConfiguration _roadConfiguration;
     private readonly ILogger<TrafficBalancer> _logger;
 
     public TrafficBalancer(ITrafficBalancerService trafficBalancer,
         IRedisClient<VehicleStats> redisClient,
-        ITableStorageClient<RoutingInfoEntity> tableClient,
+        IRoutingInfoTableClient tableClient,
         RoadConfiguration roadConfiguration,
         ILogger<TrafficBalancer> logger)
     {
