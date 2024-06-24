@@ -120,10 +120,11 @@ public class VehicleClusterService : IVehicleClusterService
     private void AssignIncomingVehiclesToClusters(List<Vehicle> vehicles)
     {
         var incomingVehicles = vehicles.Where(v => !v.IsAssignedToCluster);
+        var initialClusters = new List<Cluster>(_clusters);
 
         foreach (var vehicle in incomingVehicles)
         {
-            foreach (var cluster in _clusters)
+            foreach (var cluster in initialClusters)
             {
                 ProcessClusterVehicle(vehicles, vehicle, cluster);
             }
