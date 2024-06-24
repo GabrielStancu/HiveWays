@@ -2,7 +2,7 @@
 
 namespace HiveWays.Business.CosmosDbClient;
 
-public interface ICosmosDbClient<T> where T : BaseDevice
+public interface ICosmosDbClient<T> where T : BaseDocument
 {
     Task<T> GetDocumentByIdAsync(string id, string partitionKey);
     Task<IEnumerable<T>> GetDocumentsAsync();

@@ -7,7 +7,7 @@ using Microsoft.Azure.Cosmos.Linq;
 
 namespace HiveWays.Infrastructure.Clients;
 
-public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseDevice
+public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseDocument
 {
     private readonly CosmosDbConfiguration _configuration;
     private readonly ILogger<CosmosDbClient<T>> _logger;

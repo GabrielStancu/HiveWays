@@ -1,8 +1,12 @@
 ﻿namespace HiveWays.Domain.Documents;
 
-public class BaseDevice
+public class BaseDevice : BaseDocument
 {
-    public string Id { get; set; }
     public int ExternalId { get; set; }
     public virtual ObjectType ObjectType => ObjectType.Unknown;
+}
+
+public class BaseDocument
+{
+    public string Id { get; set; }
 }

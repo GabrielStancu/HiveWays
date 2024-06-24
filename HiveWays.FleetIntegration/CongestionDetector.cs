@@ -1,4 +1,5 @@
 using System.Text.Json;
+using HiveWays.Business.CosmosDbClient;
 using HiveWays.Business.RedisClient;
 using HiveWays.Business.ServiceBusClient;
 using HiveWays.Domain.Models;
@@ -16,6 +17,7 @@ public class CongestionDetector
     private readonly IRedisClient<VehicleStats> _redisClient;
     private readonly IVehicleClusterService _vehicleClusterService;
     private readonly ICongestionDetectionService _congestionDetectionService;
+    private readonly ICosmosDbClient<ClusteringResult> _cosmosDbClient;
     private readonly IServiceBusSenderClient _sbClient;
     private readonly ILogger<CongestionDetector> _logger;
 
@@ -23,12 +25,14 @@ public class CongestionDetector
         IVehicleClusterService vehicleClusterService,
         ICongestionDetectionService congestionDetectionService,
         IServiceBusSenderFactory serviceBusSenderFactory,
+        ICosmosDbClient<ClusteringResult> cosmosDbClient,
         CongestionQueueConfiguration congestionQueueConfiguration,
         ILogger<CongestionDetector> logger)
     {
         _redisClient = redisClient;
         _vehicleClusterService = vehicleClusterService;
         _congestionDetectionService = congestionDetectionService;
+        _cosmosDbClient = cosmosDbClient;
         _sbClient = serviceBusSenderFactory.GetServiceBusSenderClient(congestionQueueConfiguration.ConnectionString, congestionQueueConfiguration.QueueName);
         _logger = logger;
     }
@@ -64,6 +68,14 @@ public class CongestionDetector
         _logger.LogInformation("Sending congestion data to traffic balancer {SentVehicleIds}", congestedVehicles.Select(v => v.Id));
 
         await _sbClient.SendMessageAsync(congestedVehicles);
+
+        var clusteringResult = new ClusteringResult
+        {
+            Id = "routing-clusters",
+            Clusters = clusters,
+            CongestedClusters = congestedClusters
+        };
+        await _cosmosDbClient.UpsertDocumentAsync(clusteringResult);
     }
 
     private static Vehicle MapStatsToVehicle(IGrouping<int, VehicleStats> g) =>

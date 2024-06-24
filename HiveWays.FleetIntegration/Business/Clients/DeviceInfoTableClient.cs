@@ -4,10 +4,10 @@ using HiveWays.FleetIntegration.Business.Interfaces;
 using HiveWays.Infrastructure.Clients;
 using Microsoft.Extensions.Logging;
 
-namespace HiveWays.FleetIntegration.Business;
+namespace HiveWays.FleetIntegration.Business.Clients;
 public class DeviceInfoTableClient : TableStorageClient<DataPointEntity>, IDeviceInfoTableClient
 {
-    public DeviceInfoTableClient(DeviceInfoConfiguration configuration, ILogger<DeviceInfoTableClient> logger) 
+    public DeviceInfoTableClient(DeviceInfoConfiguration configuration, ILogger<DeviceInfoTableClient> logger)
         : base(configuration, logger)
     {
     }

@@ -1,9 +1,10 @@
+using HiveWays.Business.CosmosDbClient;
 using HiveWays.Business.Extensions;
 using HiveWays.Business.RedisClient;
 using HiveWays.Business.TableStorageClient;
-using HiveWays.Domain.Entities;
 using HiveWays.Domain.Models;
 using HiveWays.FleetIntegration.Business;
+using HiveWays.FleetIntegration.Business.Clients;
 using HiveWays.FleetIntegration.Business.Configuration;
 using HiveWays.FleetIntegration.Business.Interfaces;
 using HiveWays.FleetIntegration.Models;
@@ -28,6 +29,7 @@ var host = new HostBuilder()
         services.AddSingleton<ICongestionDetectionService, CongestionDetectionService>();
         services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
         services.AddSingleton<ITrafficBalancerService, TrafficBalancerService>();
+        services.AddSingleton<ICosmosDbClient<ClusteringResult>, CosmosDbClient<ClusteringResult>>();
         services.AddSingleton<ITableStorageClient<RoutingInfoEntity>, TableStorageClient<RoutingInfoEntity>>();
         services.AddConfiguration<RedisConfiguration>("VehicleStats");
         services.AddConfiguration<ClusterConfiguration>("Cluster");
@@ -36,6 +38,7 @@ var host = new HostBuilder()
         services.AddConfiguration<DeviceInfoConfiguration>("DeviceInfo");
         services.AddConfiguration<CleanupConfiguration>("Cleanup");
         services.AddConfiguration<CongestionQueueConfiguration>("CongestionQueue");
+        services.AddConfiguration<CosmosDbConfiguration>("ClusteringResults");
         services.AddConfiguration<RouteConfiguration>("Route");
         services.AddConfiguration<RoadConfiguration>("Road");
     })
