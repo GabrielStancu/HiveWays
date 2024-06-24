@@ -628,7 +628,7 @@ if(document.getElementById("slider_density")!==null){
 
 // offramp use fraction  slider
 
-var fracOff=0.2; 
+var fracOff=0; 
 var slider_fracOff;
 var slider_fracOffVal;
 const url = "http://localhost:7015/api/TrafficRouter";
@@ -798,7 +798,7 @@ if(document.getElementById("slider_IDM_v0")!==null){
 
 // IDM_T slider
 
-var IDM_T=1.4; 
+var IDM_T=1.3; 
 var slider_IDM_T,slider_IDM_TVal;
 if(document.getElementById("slider_IDM_T")!==null){
    slider_IDM_T = document.getElementById("slider_IDM_T");

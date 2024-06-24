@@ -34,7 +34,7 @@ setSlider(slider_qIn, slider_qInVal, 3600*qIn, 0, "veh/h");
 
 var isGame=false;
 
-fracTruck=0.15;
+fracTruck=0.05;
 setSlider(slider_fracTruck, slider_fracTruckVal, 100*fracTruck, 0, "%");
 
 IDM_a=3; // low to allow stopGo
