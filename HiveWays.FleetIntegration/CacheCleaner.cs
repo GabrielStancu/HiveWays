@@ -25,7 +25,7 @@ public class CacheCleaner
     }
 
     [Function("CacheCleaner")]
-    public async Task Run([TimerTrigger("* * * * * *")] TimerInfo myTimer)
+    public async Task Run([TimerTrigger("0 * * * * *")] TimerInfo myTimer)
     {
         if (_cleanupConfiguration.DisabledCacheCleanup)
         {

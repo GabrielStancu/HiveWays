@@ -23,7 +23,7 @@ public class StorageCleaner
     }
 
     [Function("StorageCleaner")]
-    public async Task Run([TimerTrigger("* * * * * *")] TimerInfo myTimer)
+    public async Task Run([TimerTrigger("0 * * * * *")] TimerInfo myTimer)
     {
         if (_cleanupConfiguration.DisabledEntitiesCleanup)
         {

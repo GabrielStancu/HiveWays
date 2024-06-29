@@ -57,13 +57,7 @@ public class CongestionDetector
 
         _logger.LogInformation("Found congested clusters: [{VehicleClusters}]", congestedClusters.Select(c => c.Id));
 
-        var congestedVehicles = congestedClusters
-            .SelectMany(c => c.Vehicles.Select(v => new CongestedVehicle
-            {
-                Id = v.Id,
-                VehicleLocation = v.MedianLocation
-            }))
-            .ToList();
+        var congestedVehicles = GetCongestedVehicles(congestedClusters);
 
         _logger.LogInformation("Sending congestion data to traffic balancer {SentVehicleIds}", congestedVehicles.Select(v => v.Id));
 
@@ -98,4 +92,28 @@ public class CongestionDetector
             .OrderBy(i => i.Timestamp)
             .ToList()
         };
+
+    private static List<CongestedVehicle> GetCongestedVehicles(List<Cluster> congestedClusters)
+    {
+        var congestedVehicles = new List<CongestedVehicle>();
+
+        foreach (var cluster in congestedClusters)
+        {
+            foreach (var vehicle in cluster.Vehicles)
+            {
+                if (congestedVehicles.Any(v => v.Id == vehicle.Id))
+                    continue;
+
+                var congestedVehicle = new CongestedVehicle
+                {
+                    Id = vehicle.Id,
+                    VehicleLocation = vehicle.MedianLocation
+                };
+
+                congestedVehicles.Add(congestedVehicle);
+            }
+        }
+
+        return congestedVehicles;
+    }
 }
