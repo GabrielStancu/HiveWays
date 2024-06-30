@@ -70,9 +70,7 @@ export class AppComponent implements OnInit, OnDestroy {
           const latitude = v.Trajectory[0].Location.Latitude;
           const location = this.locationService.pixelCoordinates(new GeoPoint(latitude, longitude));
 
-          console.log(location[0] + ' ' + location[1]);
-
-          context.fillRect(location[0], location[1], 20, 20);
+          context.fillRect(location[0], location[1], 10, 10);
         })
 
       });

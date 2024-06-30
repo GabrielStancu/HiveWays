@@ -453,6 +453,10 @@ road.prototype.updateExportString=function(){
   
   if(rest<dt-0.0001){
     for(var i=0; i<this.veh.length; i++){
+      if (this.veh[i].type === "obstacle"){
+        continue;
+      }
+
       var heading=(this.veh[i].speed>1e-4)
 	  ? this.veh[i].dvdt/this.veh[i].speed : 0;
       this.exportString=this.exportString+"\n"+time.toFixed(2)

@@ -21,6 +21,6 @@ export class LocationService {
     const xMultiplier = 1.145;
     const yMultiplier = 1.148;
 
-    return [x * xMultiplier - 10, y * yMultiplier - 10];
+    return [x * xMultiplier - 5, y * yMultiplier - 5];
   }
 }
