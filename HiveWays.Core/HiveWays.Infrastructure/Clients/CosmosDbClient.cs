@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using HiveWays.Domain.Documents;
 using HiveWays.Infrastructure.Utils;
 using Microsoft.Azure.Cosmos.Linq;
+using Container = Microsoft.Azure.Cosmos.Container;
 
 namespace HiveWays.Infrastructure.Clients;
 
@@ -101,6 +102,38 @@ public class CosmosDbClient<T> : ICosmosDbClient<T> where T : BaseDocument
                              "Exception: {CosmosUpsertException} @ {CosmosUpsertStackTrace}", ex.Message, ex.StackTrace);
             throw;
         }
+    }
+
+    public async Task BulkUpsertAsync(List<T> entities)
+    {
+        var upsertTasks = new List<Task>();
+        var container = GetContainerClient();
+
+        foreach (var entity in entities)
+        {
+            if (string.IsNullOrEmpty(entity.Id))
+            {
+                entity.Id = Guid.NewGuid().ToString();
+            }
+
+
+            upsertTasks.Add(container.UpsertItemAsync(entity, new PartitionKey(entity.Id)));
+        }
+
+        await Task.WhenAll(upsertTasks);
+    }
+
+    public async Task BulkDeleteAsync(List<T> entities)
+    {
+        var upsertTasks = new List<Task>();
+        var container = GetContainerClient();
+
+        foreach (var entity in entities)
+        {
+            upsertTasks.Add(container.DeleteItemAsync<T>(entity.Id, new PartitionKey(entity.Id)));
+        }
+
+        await Task.WhenAll(upsertTasks);
     }
 
     private Container GetContainerClient()

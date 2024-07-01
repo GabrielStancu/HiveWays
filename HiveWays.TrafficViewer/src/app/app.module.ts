@@ -6,6 +6,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { ClustersService } from './services/clusters.service';
 import { LocationService } from './services/location.service';
+import { VehicleDataService } from './services/vehicle-data.service';
 
 @NgModule({
   declarations: [
@@ -16,7 +17,7 @@ import { LocationService } from './services/location.service';
     AppRoutingModule,
     HttpClientModule
   ],
-  providers: [ClustersService, LocationService],
+  providers: [ClustersService, LocationService, VehicleDataService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
