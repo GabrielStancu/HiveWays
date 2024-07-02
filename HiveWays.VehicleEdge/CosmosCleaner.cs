@@ -18,11 +18,11 @@ public class CosmosCleaner
     }
 
     [Function("CosmosCleaner")]
-    public async Task Run([TimerTrigger("0 * * * * *")] TimerInfo myTimer)
+    public async Task Run([TimerTrigger("*/10 * * * * *")] TimerInfo myTimer)
     {
         try
         {
-            var removeTimestamp = DateTime.UtcNow.AddMinutes(-5);
+            var removeTimestamp = DateTime.UtcNow.AddSeconds(-10);
             var oldData = (await _cosmosDbClient.GetDocumentsByQueryAsync(devices =>
             {
                 var filteredDevices = devices.Where(d => d.Timestamp < removeTimestamp);

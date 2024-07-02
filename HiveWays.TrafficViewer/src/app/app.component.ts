@@ -5,7 +5,8 @@ import { ClusteringResult } from './models/cluster-results.model';
 import { LocationService } from './services/location.service';
 import { Cluster, GeoPoint } from './models/cluster.model';
 import { VehicleDataService } from './services/vehicle-data.service';
-import { VehicleData } from './models/vehicle-data.model';
+import { DataPoint, VehicleData } from './models/vehicle-data.model';
+import { ClusteringService } from './services/clustering.service';
 
 @Component({
   selector: 'app-root',
@@ -23,14 +24,24 @@ export class AppComponent implements OnInit, OnDestroy {
   private subscription: Subscription = new Subscription;
   private vehicleData: VehicleData[] = [];
   private currentVehicleData: VehicleData[] = [];
+  private clusters: Map<number, Map<DataPoint, DataPoint[]>> = new Map();
+  private colorCodes = ["#FF0000", "#0000FF", "#00FF00", "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500", "#800080", "#A52A2A", "#FFC0CB" ];
 
-  constructor(private vehicleDataService: VehicleDataService, private locationService: LocationService) {}
+  constructor(private vehicleDataService: VehicleDataService, private locationService: LocationService, private clusterService: ClusteringService) {}
 
   ngOnInit() {
-    this.subscription = interval(5000).pipe(
+    this.subscription = interval(750).pipe(
       switchMap(() => this.vehicleDataService.getVehicleData())
     ).subscribe(data => {
-      console.log(data);
+      var i = 0;
+      while (i < this.currentVehicleData.length) {
+        if (data.findIndex(x => x.DataPoint.Id === this.currentVehicleData[i].DataPoint.Id) === -1) {
+          this.currentVehicleData.splice(i, 1);
+        } else {
+          i++;
+        }
+      }
+
       data.forEach(d => {
         this.vehicleData.push(d);
         var index = this.currentVehicleData.findIndex(x => x.DataPoint.Id === d.DataPoint.Id);
@@ -40,6 +51,13 @@ export class AppComponent implements OnInit, OnDestroy {
           this.currentVehicleData.push(d);
         }
       });
+
+      const roadIdMap = this.clusterService.groupByRoadId(this.currentVehicleData);
+      roadIdMap.forEach((dataPoints, roadId) => {
+        const clusters = this.clusterService.fit(dataPoints, Math.max(this.currentVehicleData.length/10 + 1, 5), 3);
+        this.clusters.set(roadId, clusters);
+      });
+
       this.onImageLoad();
       },
       error => {
@@ -68,28 +86,45 @@ export class AppComponent implements OnInit, OnDestroy {
       context.clearRect(0, 0, canvasElement.width, canvasElement.height);
       context.lineWidth = 2;
 
-      this.currentVehicleData.forEach(d => {
-        const location = this.locationService.pixelCoordinates(new GeoPoint(d.DataPoint.Y, d.DataPoint.X));
+      var index = 0;
 
-        this.drawBorder(location[0], location[1], 10, 10, context, 2);
-        const color = this.generateRandomColor();
-        // Draw rectangles
-        context.strokeStyle = 'black';
-        context.fillStyle = color;
+      this.clusters.forEach((c, i) => {
+        c.forEach((dataPoints, centroid) => {
+          const color = this.colorCodes[index++];
 
-        context.fillRect(location[0], location[1], 10, 10);
+          dataPoints.forEach(dataPoint => {
+            const location = this.locationService.pixelCoordinates(new GeoPoint(dataPoint.Y, dataPoint.X));
+            this.drawBorder(location[0], location[1], 10, 10, context, 2);
+
+            // Draw rectangles
+            context.strokeStyle = 'black';
+            context.fillStyle = color;
+
+            context.fillRect(location[0], location[1], 10, 10);
+          })
+        })
       });
+
+      // this.currentVehicleData.forEach(d => {
+      //   const location = this.locationService.pixelCoordinates(new GeoPoint(d.DataPoint.Y, d.DataPoint.X));
+
+      //   this.drawBorder(location[0], location[1], 10, 10, context, 2);
+      //   const color = this.generateRandomColor();
+      //   // Draw rectangles
+      //   context.strokeStyle = 'black';
+      //   context.fillStyle = color;
+
+      //   context.fillRect(location[0], location[1], 10, 10);
+      // });
     }
   }
 
   generateRandomColor(): string {
-    // Generate random values for R, G, B channels
-    // const r = Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
-    // const g = Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
-    // const b = Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
+    const r = Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
+    const g = Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
+    const b = Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
 
-    // return `#${r}${g}${b}`;
-    return 'orange';
+    return `#${r}${g}${b}`;
   }
 
   drawBorder(xPos: number, yPos: number, width: number, height: number, ctx: CanvasRenderingContext2D, thickness = 2): void{

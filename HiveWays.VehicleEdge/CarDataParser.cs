@@ -48,7 +48,7 @@ public class CarDataParser
                 var batchedList = dataPointsBatched.ToList();
 
                 await ExportServiceBusBatchAsync(file, batchedList);
-                await ExportCosmosDbBatchAsync(batchedList, fileParsing.ReferenceTimestamp, fileParsing.RoadId);
+                await ExportCosmosDbBatchAsync(batchedList, fileParsing.RoadId);
             }
         }
         catch (Exception ex)
@@ -71,15 +71,16 @@ public class CarDataParser
         await _senderClient.SendMessageAsync(dataPointsBatch);
     }
 
-    private async Task ExportCosmosDbBatchAsync(List<DataPoint> batchedList, DateTime timestamp, int roadId)
+    private async Task ExportCosmosDbBatchAsync(List<DataPoint> batchedList, int roadId)
     {
         _logger.LogInformation("Sending data points batch to cosmos db");
 
         var vehiclesData = batchedList.Select(b => new VehicleData
         {
             Id = $"{b.Id}-{Guid.NewGuid()}",
-            Timestamp = timestamp.AddSeconds(b.TimeOffsetSeconds),
-            DataPoint = b
+            Timestamp = DateTime.UtcNow,
+            DataPoint = b,
+            RoadId = roadId
         }).ToList();
 
         await _cosmosDbClient.BulkUpsertAsync(vehiclesData);

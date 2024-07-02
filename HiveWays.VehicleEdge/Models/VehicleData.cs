@@ -7,5 +7,5 @@ public class VehicleData : BaseDocument
 {
     public DataPoint DataPoint { get; set; }
     public DateTime Timestamp { get; set; }
-    public string RoadId { get; set; }
+    public int RoadId { get; set; }
 }

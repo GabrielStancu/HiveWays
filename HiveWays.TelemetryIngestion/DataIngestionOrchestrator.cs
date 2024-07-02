@@ -41,7 +41,11 @@ public class DataIngestionOrchestrator
         await context.CallActivityAsync(nameof(StoreVehicleStats), vehicleStats);
 
         var validDataPointEntities = await context.CallActivityAsync<IEnumerable<DataPointEntity>>(nameof(EnrichDataPoints), validDataPointsBatch);
-        await context.CallActivityAsync(nameof(StoreHistoricalData), validDataPointEntities);
+
+        if (validDataPointEntities?.Any() ?? true)
+        {
+            await context.CallActivityAsync(nameof(StoreHistoricalData), validDataPointEntities);
+        }
     }
 
     private async Task<DataPointsBatch> ValidateDataPointsBatchAsync(TaskOrchestrationContext context, DataPointsBatch dataPointsBatch)
@@ -105,7 +109,10 @@ public class DataIngestionOrchestrator
     [Function(nameof(StoreHistoricalData))]
     public async Task StoreHistoricalData([ActivityTrigger] IEnumerable<DataPointEntity> dataPointEntities)
     {
-        foreach (var entitiesPartitionGroup in dataPointEntities.GroupBy(e => e.PartitionKey))
+        if (dataPointEntities is null)
+            return;
+
+        foreach (var entitiesPartitionGroup in dataPointEntities.Where(e => e != null).GroupBy(e => e.PartitionKey))
         {
             try
             {
