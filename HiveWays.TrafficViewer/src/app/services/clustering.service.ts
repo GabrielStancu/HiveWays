@@ -11,26 +11,26 @@ export class ClusteringService {
 
   constructor() { }
 
-  public groupByRoadId(vehicleDataList: VehicleData[]): Map<number, DataPoint[]> {
-    const roadIdMap = new Map<number, DataPoint[]>();
+  public groupByRoadId(vehicleDataList: VehicleData[]): Map<number, VehicleData[]> {
+    const roadIdMap = new Map<number, VehicleData[]>();
 
     vehicleDataList.forEach(vehicleData => {
       const roadId = vehicleData.RoadId;
       if (!roadIdMap.has(roadId)) {
         roadIdMap.set(roadId, []);
       }
-      roadIdMap.get(roadId)?.push(vehicleData.DataPoint);
+      roadIdMap.get(roadId)?.push(vehicleData);
     });
 
     return roadIdMap;
   }
 
-  public fit(data: DataPoint[], k: number, maxIterations: number): Map<DataPoint, DataPoint[]> {
+  public fit(data: VehicleData[], k: number, maxIterations: number): Map<DataPoint, VehicleData[]> {
     this.k = k;
     this.maxIterations = maxIterations;
 
-    let centroids = this.initializeCentroids(data);
-    let clusters = new Map<DataPoint, DataPoint[]>();
+    let centroids = this.initializeCentroids(data.map(d => d.DataPoint));
+    let clusters = new Map<DataPoint, VehicleData[]>();
 
     for (let i = 0; i < this.maxIterations; i++) {
       clusters = this.assignClusters(data, centroids);
@@ -55,17 +55,17 @@ export class ClusteringService {
     return Math.sqrt(Math.pow(point1.X - point2.X, 2) + Math.pow(point1.Y - point2.Y, 2));
   }
 
-  private assignClusters(data: DataPoint[], centroids: DataPoint[]): Map<DataPoint, DataPoint[]> {
-    const clusters = new Map<DataPoint, DataPoint[]>();
+  private assignClusters(data: VehicleData[], centroids: DataPoint[]): Map<DataPoint, VehicleData[]> {
+    const clusters = new Map<DataPoint, VehicleData[]>();
 
     centroids.forEach(centroid => clusters.set(centroid, []));
 
     data.forEach(point => {
       let closestCentroid = centroids[0];
-      let minDistance = this.getDistance(point, closestCentroid);
+      let minDistance = this.getDistance(point.DataPoint, closestCentroid);
 
       for (let i = 1; i < centroids.length; i++) {
-        const distance = this.getDistance(point, centroids[i]);
+        const distance = this.getDistance(point.DataPoint, centroids[i]);
         if (distance < minDistance) {
           minDistance = distance;
           closestCentroid = centroids[i];
@@ -78,7 +78,7 @@ export class ClusteringService {
     return clusters;
   }
 
-  private calculateCentroids(clusters: Map<DataPoint, DataPoint[]>): DataPoint[] {
+  private calculateCentroids(clusters: Map<DataPoint, VehicleData[]>): DataPoint[] {
     const newCentroids: DataPoint[] = [];
 
     clusters.forEach((points, centroid) => {
@@ -88,8 +88,8 @@ export class ClusteringService {
       }
 
       const sum = points.reduce((acc, point) => {
-        acc.X += point.X;
-        acc.Y += point.Y;
+        acc.X += point.DataPoint.X;
+        acc.Y += point.DataPoint.Y;
         return acc;
       }, { X: 0, Y: 0 });
 

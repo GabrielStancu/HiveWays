@@ -1,9 +1,9 @@
-﻿using HiveWays.Domain.Models;
-using HiveWays.FleetIntegration.Models;
+﻿using HiveWays.FleetIntegration.Models;
+using HiveWays.VehicleEdge.Models;
 
 namespace HiveWays.FleetIntegration.Business.Interfaces;
 
 public interface ITrafficBalancerService
 {
-    double RecomputeBalancingRatio(List<CongestedVehicle> congestedVehicles, List<VehicleStats> vehicleStats, double previousRatio);
+    double RecomputeBalancingRatio(List<CongestedVehicle> congestedVehicles, List<VehicleData> vehicleData, double previousRatio);
 }

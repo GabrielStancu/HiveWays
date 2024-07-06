@@ -1,9 +1,7 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { Subscription, interval, switchMap } from 'rxjs';
-import { ClustersService } from './services/clusters.service';
-import { ClusteringResult } from './models/cluster-results.model';
+import { Observable, Subscription, interval, switchMap } from 'rxjs';
 import { LocationService } from './services/location.service';
-import { Cluster, GeoPoint } from './models/cluster.model';
+import { GeoPoint } from './models/cluster.model';
 import { VehicleDataService } from './services/vehicle-data.service';
 import { DataPoint, VehicleData } from './models/vehicle-data.model';
 import { ClusteringService } from './services/clustering.service';
@@ -21,11 +19,22 @@ export class AppComponent implements OnInit, OnDestroy {
   @ViewChild('canvasRef')
   canvasRef!: ElementRef<HTMLCanvasElement>;
 
+  public averageSpeed = 0;
+  public averageSpeedKmph = 0;
+  public averageAcceleration = 0;
+  public averageTimeSpentInTrafficMin = 0;
+  public averageTimeSpentInTrafficSec = 0;
+  public averageTimeSpentInCongestionMin = 0;
+  public averageTimeSpentInCongestionSec = 0;
+  private samplesCount = 0;
+
   private subscription: Subscription = new Subscription;
-  private vehicleData: VehicleData[] = [];
+  private subscriptionMetrics: Subscription = new Subscription;
   private currentVehicleData: VehicleData[] = [];
-  private clusters: Map<number, Map<DataPoint, DataPoint[]>> = new Map();
+  private clusters: Map<number, Map<DataPoint, VehicleData[]>> = new Map();
   private colorCodes = ["#FF0000", "#0000FF", "#00FF00", "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500", "#800080", "#A52A2A", "#FFC0CB" ];
+  private congestedColorCodes = ["#222222", "#AAAAAA", "#333333", "#999999", "#444444", "#888888", "#555555", "#777777", "#666666" ];
+  private vehicleMap = new Map<number, { firstTimestamp: Date, lastTimestamp: Date }>();
 
   constructor(private vehicleDataService: VehicleDataService, private locationService: LocationService, private clusterService: ClusteringService) {}
 
@@ -33,25 +42,46 @@ export class AppComponent implements OnInit, OnDestroy {
     this.subscription = interval(750).pipe(
       switchMap(() => this.vehicleDataService.getVehicleData())
     ).subscribe(data => {
+      // remove stopped vehicles
       var i = 0;
       while (i < this.currentVehicleData.length) {
-        if (data.findIndex(x => x.DataPoint.Id === this.currentVehicleData[i].DataPoint.Id) === -1) {
+        const id = this.currentVehicleData[i].DataPoint.Id;
+        if (data.findIndex(x => x.DataPoint.Id === id) === -1) {
           this.currentVehicleData.splice(i, 1);
+
+          const vehicle = this.vehicleMap.get(id)!;
+          vehicle.lastTimestamp = new Date();
+          this.vehicleMap.set(id, vehicle);
         } else {
           i++;
         }
       }
 
+      // compute simulation round average speed, acceleration
+      if (data.length > 0) {
+        this.averageSpeed = Number(((this.averageSpeed * this.samplesCount + data.reduce((sum, current) => sum + current.DataPoint.Speed, 0))
+         / (this.samplesCount + data.length)).toFixed(2));
+        this.averageAcceleration = Number(((this.averageAcceleration * this.samplesCount + data.reduce((sum, current) => sum + current.DataPoint.Acceleration, 0))
+         / (this.samplesCount+ data.length)).toFixed(2));
+        this.averageSpeedKmph = Number((3.6 * this.averageSpeed).toFixed(2));
+         this.samplesCount += data.length;
+      }
+
+      // add to all vehicles data, update current data to be displayed
       data.forEach(d => {
-        this.vehicleData.push(d);
         var index = this.currentVehicleData.findIndex(x => x.DataPoint.Id === d.DataPoint.Id);
         if (index > -1) {
           this.currentVehicleData[index] = d;
         } else {
           this.currentVehicleData.push(d);
+          if (!this.vehicleMap.has(d.DataPoint.Id)) {
+            const timestemp = new Date();
+            this.vehicleMap.set(d.DataPoint.Id, { firstTimestamp: timestemp, lastTimestamp: timestemp });
+          }
         }
       });
 
+      // color the clusters
       const roadIdMap = this.clusterService.groupByRoadId(this.currentVehicleData);
       roadIdMap.forEach((dataPoints, roadId) => {
         const clusters = this.clusterService.fit(dataPoints, Math.max(this.currentVehicleData.length/10 + 1, 5), 3);
@@ -64,11 +94,19 @@ export class AppComponent implements OnInit, OnDestroy {
         console.error('Error fetching clusters', error);
       }
     );
+
+    const metrics = interval(750);
+    this.subscriptionMetrics = metrics.subscribe(() => {
+      this.computeMetrics();
+    });
   }
 
   ngOnDestroy() {
     if (this.subscription) {
       this.subscription.unsubscribe();
+    }
+    if (this.subscriptionMetrics) {
+      this.subscriptionMetrics.unsubscribe();
     }
   }
 
@@ -87,13 +125,16 @@ export class AppComponent implements OnInit, OnDestroy {
       context.lineWidth = 2;
 
       var index = 0;
+      var congestedIndex = 0;
 
       this.clusters.forEach((c, i) => {
-        c.forEach((dataPoints, centroid) => {
-          const color = this.colorCodes[index++];
+        c.forEach((vehiclesData, centroid) => {
+          const clusterAverageSpeed = vehiclesData.reduce((sum, current) => sum + current.DataPoint.Speed, 0) / vehiclesData.length;
+          const color = clusterAverageSpeed < 10 && vehiclesData.length > 10 ? this.congestedColorCodes[congestedIndex++] : this.colorCodes[index++];
 
-          dataPoints.forEach(dataPoint => {
-            const location = this.locationService.pixelCoordinates(new GeoPoint(dataPoint.Y, dataPoint.X));
+          vehiclesData.forEach(dataPoint => {
+            const location = this.locationService.pixelCoordinates(new GeoPoint(dataPoint.DataPoint.Y, dataPoint.DataPoint.X));
+
             this.drawBorder(location[0], location[1], 10, 10, context, 2);
 
             // Draw rectangles
@@ -101,22 +142,24 @@ export class AppComponent implements OnInit, OnDestroy {
             context.fillStyle = color;
 
             context.fillRect(location[0], location[1], 10, 10);
-          })
-        })
+          });
+
+          if (index >= this.colorCodes.length) {
+            index = 0;
+          }
+          if (congestedIndex >= this.congestedColorCodes.length) {
+            congestedIndex = 0;
+          }
+        });
       });
-
-      // this.currentVehicleData.forEach(d => {
-      //   const location = this.locationService.pixelCoordinates(new GeoPoint(d.DataPoint.Y, d.DataPoint.X));
-
-      //   this.drawBorder(location[0], location[1], 10, 10, context, 2);
-      //   const color = this.generateRandomColor();
-      //   // Draw rectangles
-      //   context.strokeStyle = 'black';
-      //   context.fillStyle = color;
-
-      //   context.fillRect(location[0], location[1], 10, 10);
-      // });
     }
+  }
+
+  private computeMetrics(): void {
+    // compute average time spent in traffic
+    const timeSpentInTraffic = this.computeAverageTimeSpentInTraffic();
+    this.averageTimeSpentInTrafficSec = Number((timeSpentInTraffic % 60).toFixed(0));
+    this.averageTimeSpentInTrafficMin = Number(Math.floor(timeSpentInTraffic / 60));
   }
 
   generateRandomColor(): string {
@@ -130,5 +173,21 @@ export class AppComponent implements OnInit, OnDestroy {
   drawBorder(xPos: number, yPos: number, width: number, height: number, ctx: CanvasRenderingContext2D, thickness = 2): void{
     ctx.fillStyle='#000';
     ctx.fillRect(xPos - (thickness), yPos - (thickness), width + (thickness * 2), height + (thickness * 2));
+  }
+
+  computeAverageTimeSpentInTraffic(): number {
+    let totalTimeSpent = 0;
+    let count = 0;
+    this.vehicleMap.forEach((timestamps, id) => {
+      const timeDiff = timestamps.lastTimestamp.getTime() - timestamps.firstTimestamp.getTime();
+
+      if (timeDiff > 0) {
+        count++;
+        totalTimeSpent += timeDiff * 1.0 / 1000;
+      }
+    });
+
+    // Compute average time spent
+    return count > 0 ? 1.0 * totalTimeSpent / count : 0;
   }
 }

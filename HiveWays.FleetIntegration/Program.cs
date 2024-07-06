@@ -10,6 +10,7 @@ using HiveWays.FleetIntegration.Business.Interfaces;
 using HiveWays.FleetIntegration.Models;
 using HiveWays.Infrastructure.Clients;
 using HiveWays.Infrastructure.Factories;
+using HiveWays.VehicleEdge.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -29,7 +30,7 @@ var host = new HostBuilder()
         services.AddSingleton<ICongestionDetectionService, CongestionDetectionService>();
         services.AddSingleton<IServiceBusSenderFactory, ServiceBusSenderFactory>();
         services.AddSingleton<ITrafficBalancerService, TrafficBalancerService>();
-        services.AddSingleton<ICosmosDbClient<ClusteringResult>, CosmosDbClient<ClusteringResult>>();
+        services.AddSingleton<ICosmosDbClient<VehicleData>, CosmosDbClient<VehicleData>>();
         services.AddSingleton<ITableStorageClient<RoutingInfoEntity>, TableStorageClient<RoutingInfoEntity>>();
         services.AddConfiguration<RedisConfiguration>("VehicleStats");
         services.AddConfiguration<ClusterConfiguration>("Cluster");
