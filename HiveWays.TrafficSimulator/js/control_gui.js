@@ -655,7 +655,7 @@ setInterval(() => {
             slider_fracOff = document.getElementById("slider_fracOff");
             slider_fracOffVal = document.getElementById("slider_fracOffVal");
             slider_fracOff.value=100*fracOff;
-            slider_fracOffVal.innerHTML=100*fracOff+" %";
+            slider_fracOffVal.innerHTML=parseInt(100*fracOff, 10)+" %";
           });
       })
       .then(data => {

@@ -24,9 +24,9 @@ export class AppComponent implements OnInit, OnDestroy {
   public averageAcceleration = 0;
   public averageTimeSpentInTrafficMin = 0;
   public averageTimeSpentInTrafficSec = 0;
-  public averageTimeSpentInCongestionMin = 0;
-  public averageTimeSpentInCongestionSec = 0;
+  public passedVehicles = 0;
   private samplesCount = 0;
+  private totalTimeSpentInTraffic = 0;
 
   private subscription: Subscription = new Subscription;
   private subscriptionMetrics: Subscription = new Subscription;
@@ -52,6 +52,8 @@ export class AppComponent implements OnInit, OnDestroy {
           const vehicle = this.vehicleMap.get(id)!;
           vehicle.lastTimestamp = new Date();
           this.vehicleMap.set(id, vehicle);
+
+          this.passedVehicles++;
         } else {
           i++;
         }
@@ -130,7 +132,8 @@ export class AppComponent implements OnInit, OnDestroy {
       this.clusters.forEach((c, i) => {
         c.forEach((vehiclesData, centroid) => {
           const clusterAverageSpeed = vehiclesData.reduce((sum, current) => sum + current.DataPoint.Speed, 0) / vehiclesData.length;
-          const color = clusterAverageSpeed < 10 && vehiclesData.length > 10 ? this.congestedColorCodes[congestedIndex++] : this.colorCodes[index++];
+          const isCongested = clusterAverageSpeed < 10 && vehiclesData.length > 10;
+          const color = isCongested ? this.congestedColorCodes[congestedIndex++] : this.colorCodes[index++];
 
           vehiclesData.forEach(vehicleData => {
             const location = this.locationService.pixelCoordinates(new GeoPoint(vehicleData.DataPoint.Y, vehicleData.DataPoint.X));
@@ -176,18 +179,16 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   computeAverageTimeSpentInTraffic(): number {
-    let totalTimeSpent = 0;
-    let count = 0;
     this.vehicleMap.forEach((timestamps, id) => {
       const timeDiff = timestamps.lastTimestamp.getTime() - timestamps.firstTimestamp.getTime();
 
       if (timeDiff > 0) {
-        count++;
-        totalTimeSpent += timeDiff * 1.0 / 1000;
+        this.totalTimeSpentInTraffic += timeDiff * 1.0 / 1000;
+        this.vehicleMap.delete(id);
       }
     });
 
     // Compute average time spent
-    return count > 0 ? 1.0 * (totalTimeSpent / count - 10) : 0;
+    return this.passedVehicles > 0 ? 1.0 * (this.totalTimeSpentInTraffic / this.passedVehicles - 10) : 0;
   }
 }
