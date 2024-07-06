@@ -3,3 +3,25 @@
   padding: 0px;
   width: 100%;
 }
+
+.metrics-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding-left: 140px;
+}
+
+.metrics-label {
+  color: #999999;
+}
+
+.metrics-value {
+  border-color: #999999;
+  border-radius: 5px;
+  border-width: 2px;
+}
+
+h3 {
+  margin-bottom: 20px;
+}

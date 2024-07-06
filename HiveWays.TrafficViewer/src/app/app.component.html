@@ -6,18 +6,18 @@
         <canvas #canvasRef style="position: absolute; top: 0; left: 0;"></canvas>
       </div>
     </div>
-    <div class="col-md-4">
-        <h2>Average Speed</h2>
-        <h3>{{averageSpeedKmph}} km/h</h3>
+    <div class="col-md-4 metrics-container">
+        <h5 class="metrics-label">Average Speed</h5>
+        <h3 class="metrics-value">{{averageSpeedKmph}} km/h</h3>
 
-        <h2>Average Acceleration</h2>
-        <h3>{{averageAcceleration}} m/s<sup>2</sup></h3>
+        <h5 class="metrics-label">Average Acceleration</h5>
+        <h3 class="metrics-value">{{averageAcceleration}} m/s<sup>2</sup></h3>
 
-        <h2>Average Time Spent In Traffic</h2>
-        <h3>{{averageTimeSpentInTrafficMin}} min {{averageTimeSpentInTrafficSec}} s</h3>
+        <h5 class="metrics-label">Average Time Spent In Traffic</h5>
+        <h3 class="metrics-value">{{averageTimeSpentInTrafficMin}} min {{averageTimeSpentInTrafficSec}} s</h3>
 
-        <h2>Traffic Flow</h2>
-        <h3>{{passedVehicles}} cars</h3>
+        <h5 class="metrics-label">Traffic Flow</h5>
+        <h3 class="metrics-value">{{passedVehicles}} cars</h3>
     </div>
   </div>
 </div>
