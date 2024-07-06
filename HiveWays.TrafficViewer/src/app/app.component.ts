@@ -132,8 +132,8 @@ export class AppComponent implements OnInit, OnDestroy {
           const clusterAverageSpeed = vehiclesData.reduce((sum, current) => sum + current.DataPoint.Speed, 0) / vehiclesData.length;
           const color = clusterAverageSpeed < 10 && vehiclesData.length > 10 ? this.congestedColorCodes[congestedIndex++] : this.colorCodes[index++];
 
-          vehiclesData.forEach(dataPoint => {
-            const location = this.locationService.pixelCoordinates(new GeoPoint(dataPoint.DataPoint.Y, dataPoint.DataPoint.X));
+          vehiclesData.forEach(vehicleData => {
+            const location = this.locationService.pixelCoordinates(new GeoPoint(vehicleData.DataPoint.Y, vehicleData.DataPoint.X));
 
             this.drawBorder(location[0], location[1], 10, 10, context, 2);
 

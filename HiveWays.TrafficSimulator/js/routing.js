@@ -393,7 +393,7 @@ mainroad.initMergeDiverge(targets,isMerge,
 var route1=[1];  // stays on mainroad
 var route2=[1,2]; // takes deviation
 for (var i=0; i<mainroad.veh.length; i++){
-    mainroad.veh[i].route=(Math.random()<fracOff) ? route2 : route1;
+    mainroad.veh[i].route=(Math.random()<fracOff * cavRate) ? route2 : route1;
     //console.log("mainroad.veh["+i+"].route="+mainroad.veh[i].route);
 }
 
@@ -616,7 +616,7 @@ function updateSim(){
     mainroad.changeLanes();         
     mainroad.updateSpeedPositions();
     mainroad.updateBCdown();
-    var route=(Math.random()<fracOff) ? route2 : route1;
+    var route=(Math.random()<fracOff * cavRate) ? route2 : route1;
     mainroad.updateBCup(qIn,dt,route); // qIn=total inflow, route opt. arg.
 
 

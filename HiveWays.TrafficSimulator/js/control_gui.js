@@ -667,6 +667,23 @@ setInterval(() => {
   }
 }, 1000);
 
+
+// cav rate
+var cavRate=1; 
+var slider_cavRate;
+var slider_cavRateVal;
+if(document.getElementById("slider_cavRate")!==null){
+    slider_cavRate = document.getElementById("slider_cavRate");
+    slider_cavRateVal = document.getElementById("slider_cavRateVal");
+    slider_cavRate.value=100*cavRate;
+    slider_cavRateVal.innerHTML=100*cavRate+" %";
+
+    slider_cavRate.oninput = function() {
+        slider_cavRateVal.innerHTML = this.value+" %";
+        cavRate=parseFloat(this.value/100.);
+    }
+}
+
 if(document.getElementById("slider_fracOff")!==null){
     slider_fracOff = document.getElementById("slider_fracOff");
     slider_fracOffVal = document.getElementById("slider_fracOffVal");
