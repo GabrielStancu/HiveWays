@@ -1,6 +1,6 @@
 ﻿namespace HiveWays.VehicleEdge.Configuration;
 
-public class StorageAccountConfiguration
+public class BlobConfiguration
 {
     public string ConnectionString { get; set; }
     public string ContainerName { get; set; }

@@ -10,10 +10,10 @@ namespace HiveWays.VehicleEdge;
 
 public class CarDataReceiver
 {
-    private readonly StorageAccountConfiguration _saConfiguration;
+    private readonly BlobConfiguration _saConfiguration;
     private readonly ILogger<CarDataReceiver> _logger;
 
-    public CarDataReceiver(StorageAccountConfiguration saConfiguration,
+    public CarDataReceiver(BlobConfiguration saConfiguration,
         ILogger<CarDataReceiver> logger)
     {
         _saConfiguration = saConfiguration;

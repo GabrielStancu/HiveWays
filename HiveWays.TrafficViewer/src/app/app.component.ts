@@ -188,6 +188,6 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     // Compute average time spent
-    return count > 0 ? 1.0 * totalTimeSpent / count : 0;
+    return count > 0 ? 1.0 * (totalTimeSpent / count - 10) : 0;
   }
 }
