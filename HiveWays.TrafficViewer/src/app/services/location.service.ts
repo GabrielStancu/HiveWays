@@ -18,8 +18,8 @@ export class LocationService {
     const x = xOffset * 111321 / 350 * 1400;
     const y = yOffset * 111321 / 250 * 1250;
 
-    const xMultiplier = 1.145;
-    const yMultiplier = 1.148;
+    const xMultiplier = 1.08;
+    const yMultiplier = 1.085;
 
     return [x * xMultiplier - 5, y * yMultiplier - 5];
   }

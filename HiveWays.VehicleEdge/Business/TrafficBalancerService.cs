@@ -16,12 +16,12 @@ public class TrafficBalancerService : ITrafficBalancerService
     {
         int vehiclesOnMainRoad = vehiclesData.Count(v => v.RoadId == _roadConfiguration.MainRoadId);
         int vehiclesOnSecondaryRoad = vehiclesData.Count(v => v.RoadId == _roadConfiguration.SecondaryRoadId);
-        int maxMainRoadVehicles = 200;
+        int maxMainRoadVehicles = 100;
         double newRatio = 1;
 
         if (vehiclesOnMainRoad < maxMainRoadVehicles)
         {
-            return newRatio;
+            return 0.9; //newRatio;
         }
 
         double mainRoadCapacityWeight = 15.0;
@@ -32,8 +32,9 @@ public class TrafficBalancerService : ITrafficBalancerService
         double idealRatioWeight = 9.0;
         double currentRatioWeight = 1.0;
 
-        newRatio = (idealRatioWeight * idealRatio + currentRatioWeight * currentRatio) / (idealRatioWeight + currentRatioWeight);
+        newRatio = (idealRatioWeight * idealRatio + currentRatioWeight * currentRatio) / (idealRatioWeight + currentRatioWeight) + new Random().NextDouble() * 0.1;
+        var maxBound = Math.Min(0.83 + new Random().NextDouble() * 0.1, 1);
 
-        return Math.Round(Math.Max(0.84, Math.Min(1, newRatio)), 2);
+        return Math.Round(Math.Max(0.83, Math.Min(maxBound, newRatio)), 2);
     }
 }

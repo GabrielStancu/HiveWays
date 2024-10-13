@@ -15,9 +15,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Infrastructure", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.Domain", "HiveWays.Core\HiveWays.Domain\HiveWays.Domain.csproj", "{CA4DAC91-441C-4195-9B4B-3461BC4A96AB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.RegisteredDevicesGenerator", "HiveWays.RegisteredDevicesGenerator\HiveWays.RegisteredDevicesGenerator.csproj", "{0C69395F-AEA2-49B0-8906-9933A36EAC5F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.DataManagement", "HiveWays.RegisteredDevicesGenerator\HiveWays.DataManagement.csproj", "{0C69395F-AEA2-49B0-8906-9933A36EAC5F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.FleetIntegration", "HiveWays.FleetIntegration\HiveWays.FleetIntegration.csproj", "{1761EA78-E607-4470-A09E-7E8CB7735CC8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HiveWays.TrafficAutomation", "HiveWays.FleetIntegration\HiveWays.TrafficAutomation.csproj", "{1761EA78-E607-4470-A09E-7E8CB7735CC8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
